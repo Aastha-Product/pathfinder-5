@@ -1,0 +1,179 @@
+/* -------------------------
+  Gradient ring + subtle glow
+  Apply class .gradient-ring to the card container
+  Example: <div class="card gradient-ring">...</div>
+   - Use :before pseudo element to create outer gradient stroke
+   - Use box-shadow for glow
+---------------------------*/
+
+:root{
+  /* replace these with your brand tokens if available */
+  --brand-grad-1: #8b5cf6; /* purple */
+  --brand-grad-2: #ec4899; /* pink */
+  --brand-grad-3: #fb923c; /* orange */
+  --card-bg: #ffffff;      /* card fill */
+  --card-radius: 14px;
+  --card-padding: 20px;
+  --gradient-ring-width: 4px;
+  --gradient-glow-alpha: 0.14;
+}
+
+/* base card */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  position: relative;
+  overflow: visible;
+  transition: transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 180ms ease;
+  will-change: transform, box-shadow;
+}
+
+/* gradient ring pseudo-element */
+.card.gradient-ring::before{
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: calc(-1 * var(--gradient-ring-width));
+  border-radius: calc(var(--card-radius) + var(--gradient-ring-width));
+  background: linear-gradient(90deg, var(--brand-grad-1), var(--brand-grad-2), var(--brand-grad-3));
+  z-index: -2;
+  filter: blur(8px);
+  opacity: 0.9;
+}
+
+/* inner border effect using mask to create ring only (avoid covering card) */
+.card.gradient-ring::after{
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: calc(-1 * var(--gradient-ring-width));
+  border-radius: calc(var(--card-radius) + var(--gradient-ring-width));
+  background: linear-gradient(90deg, var(--brand-grad-1), var(--brand-grad-2), var(--brand-grad-3));
+  mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
+  opacity: 0.85;
+}
+
+/* subtle glow (base) */
+.card.gradient-ring{
+  box-shadow: 0 8px 24px rgba(11,18,35,0.06);
+}
+
+/* hover state - stronger glow + lift */
+.card.gradient-ring:hover{
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px rgba(139,92,246,0.12); /* slightly tinted */
+}
+
+/* focus visible (keyboard) */
+.card.gradient-ring:focus-within,
+.card.gradient-ring:focus {
+  outline: 3px solid rgba(139,92,246,0.14);
+  outline-offset: 6px;
+}
+
+/* reduce visual noise on small screens */
+@media (max-width: 640px){
+  .card.gradient-ring::before,
+  .card.gradient-ring::after {
+    display: none; /* avoid heavy blur on low-power devices */
+  }
+}
+
+/* subtle button hover animation for primary CTAs */
+.btn-primary {
+  transition: box-shadow 160ms ease, transform 160ms cubic-bezier(.2,.9,.2,1);
+}
+.btn-primary:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(139,92,246,0.12);
+}
+
+/* section reveal animation (optional, performant) - use IntersectionObserver to add .visible */
+.fade-up{
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 360ms ease, transform 360ms cubic-bezier(.2,.9,.2,1);
+  will-change: opacity, transform;
+}
+.fade-up.visible{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* -------------------------
+  Settings page footer (sticky inside container)
+---------------------------*/
+
+/* Settings container should have position: relative */
+.settings-container {
+  position: relative;
+  /* ensure there is space for sticky footer by adding bottom padding, size: var --footer-height */
+}
+
+/* sticky footer inside container (not full-screen fixed) */
+.settings-action-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: rgba(255,255,255,0.95); /* slightly translucent - match theme */
+  /* subtle top border so footer reads separate */
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(6px);
+  z-index: 20;
+}
+
+/* Save button on the right */
+.settings-action-footer .btn-primary {
+  min-width: 140px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+/* Disabled state */
+.settings-action-footer .btn-primary[disabled]{
+  opacity: 0.54;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Ensure form content does not get overlapped: add bottom padding equal to footer height */
+.settings-form {
+  padding-bottom: 84px; /* 44px button + padding + safe space */
+}
+
+/* Responsive: smaller footer on mobile */
+@media (max-width: 640px){
+  .settings-action-footer {
+    padding: 12px;
+    gap: 10px;
+  }
+  .settings-action-footer .btn-primary { min-width: 120px; height: 48px; }
+}
+
+/* Back arrow placement for settings header */
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.settings-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.settings-back:focus { outline: 3px solid rgba(139,92,246,0.14); }

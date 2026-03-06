@@ -1,0 +1,213 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pathfinder - Learn any skill the right way</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                600: '#2563EB', // Updated Primary Blue per spec
+                700: '#1E4FD6', // Updated Hover Blue
+              },
+              accent: {
+                500: '#00BFA6', // Teal
+              },
+              indigo: {
+                500: '#6C5CE7',
+              },
+              surface: {
+                0: '#FFFFFF',
+                50: '#F6F9FB', // Main background
+                card: '#F8FAFF', // New Card background per spec
+                100: '#E8EEF6', // Panels
+                dark: '#0B1220', // Footer
+              },
+              text: {
+                900: '#0F172A', // Updated per spec
+                700: '#334155',
+                500: '#6B7280', // Muted text per spec
+              },
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            },
+            borderRadius: {
+              'xl': '12px', // --r-card
+              '2xl': '16px',
+              '3xl': '20px',
+            },
+            boxShadow: {
+              'soft': '0 2px 6px rgba(15,23,42,0.04)', // Normal state
+              'card': '0 6px 18px rgba(15,23,42,0.06)', // Hover state
+              'card-hover': '0 12px 28px rgba(16,24,40,0.12)',
+            },
+            backgroundImage: {
+              'hero-gradient': 'linear-gradient(120deg, rgba(37, 99, 235, 0.06), rgba(0,191,166,0.03))',
+              'soft-gradient': 'linear-gradient(180deg, #F6FBFF 0%, #EEF7FF 100%)', // --soft-a
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #FFFFFF;
+        color: #0F172A;
+        -webkit-font-smoothing: antialiased;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      /* Custom focus ring for accessibility */
+      *:focus-visible {
+        outline: 3px solid rgba(37,99,235,0.18);
+        outline-offset: 2px;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      /* Custom Black Scrollbar */
+      .black-scrollbar-dark {
+        scrollbar-width: thin;
+        scrollbar-color: #94a3b8 transparent;
+      }
+      .black-scrollbar-dark::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .black-scrollbar-dark::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .black-scrollbar-dark::-webkit-scrollbar-thumb {
+        background-color: #94a3b8; /* Slate 400 */
+        border-radius: 3px;
+      }
+      .black-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+        background-color: #64748b; /* Slate 500 */
+      }
+
+      /* --- Pathfinder Community Card Design Tokens --- */
+      :root {
+        --pf-primary: #2563eb;
+        --pf-accent: linear-gradient(135deg, #60a5fa 0%, #7c3aed 100%);
+        --pf-card-bg: #ffffff;
+        --pf-card-border: rgba(17, 24, 39, 0.06);
+        --pf-muted-text: #6b7280;
+        --pf-subtle: rgba(15, 23, 42, 0.03);
+        --pf-shadow-1: 0 6px 18px rgba(14, 30, 60, 0.06);
+        --pf-animation-duration: 280ms;
+        --pf-animation-ease: cubic-bezier(.2, .9, .2, 1);
+      }
+
+      .pf-card {
+        position: relative;
+        background: var(--pf-card-bg);
+        border: 1px solid var(--pf-card-border);
+        border-radius: 12px;
+        box-shadow: var(--pf-shadow-1);
+        padding: 20px;
+        overflow: hidden;
+        transition: transform var(--pf-animation-duration) var(--pf-animation-ease),
+                    box-shadow var(--pf-animation-duration) var(--pf-animation-ease),
+                    border-color var(--pf-animation-duration) var(--pf-animation-ease);
+      }
+
+      /* Gradient wash pseudo-element */
+      .pf-card::before {
+        content: "";
+        position: absolute;
+        pointer-events: none;
+        top: -30%;
+        left: -20%;
+        width: 220%;
+        height: 120%;
+        background: var(--pf-accent);
+        opacity: 0.06;
+        filter: blur(18px);
+        transform: rotate(-10deg);
+        z-index: 0;
+      }
+
+      /* Content wrapper to ensure text sits above background wash */
+      .pf-card > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      .pf-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 12px 30px rgba(14, 30, 60, 0.08);
+        border-color: rgba(17, 24, 39, 0.08);
+      }
+
+      /* Tag Styling */
+      .pf-tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--pf-muted-text);
+        background: rgba(99, 102, 241, 0.05);
+        border: 1px solid rgba(17, 24, 39, 0.03);
+        transition: transform 180ms var(--pf-animation-ease), background-color 180ms;
+        cursor: default;
+      }
+      .pf-tag:hover {
+        transform: scale(1.03);
+        background: rgba(99, 102, 241, 0.08);
+      }
+
+      /* Entrance Animation */
+      @keyframes pf-fadeUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .pf-animate { 
+        animation: pf-fadeUp var(--pf-animation-duration) var(--pf-animation-ease) both; 
+      }
+
+      /* Reduced Motion */
+      @media (prefers-reduced-motion: reduce) {
+        .pf-card, .pf-card:hover, .pf-tag, .pf-tag:hover { 
+          transition: none; 
+          transform: none; 
+        }
+        .pf-animate { 
+          animation: none; 
+          opacity: 1; 
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "framer-motion": "https://esm.sh/framer-motion@^12.33.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

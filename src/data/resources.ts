@@ -1,0 +1,58 @@
+export const resourcesData = [
+  {
+    "id": "res-system-design",
+    "title": "System Design Interview Guide",
+    "subtitle": "Full beginner→advanced course — free",
+    "cta_text": "Start Learning",
+    "cta_href": "https://www.freecodecamp.org/news/software-system-design-for-beginners/",
+    "open_new_tab": true
+  },
+  {
+    "id": "res-docker",
+    "title": "Docker for Beginners",
+    "subtitle": "Full beginner→advanced course — free",
+    "cta_text": "Start Learning",
+    "cta_href": "https://www.freecodecamp.org/news/docker-devops-course/",
+    "open_new_tab": true
+  },
+  {
+    "id": "res-css-sass",
+    "title": "Advanced CSS & Sass",
+    "subtitle": "Full beginner→advanced course — free",
+    "cta_text": "Start Learning",
+    "cta_href": "https://scrimba.com/learn-css-variables-c026",
+    "open_new_tab": true
+  },
+  {
+    "id": "res-data-science-business",
+    "title": "Data Science for Business",
+    "subtitle": "Full beginner→advanced course — free",
+    "cta_text": "Start Learning",
+    "cta_href": "https://www.edx.org/courses?q=free+data+science+course",
+    "open_new_tab": true
+  },
+  {
+    "id": "res-clean-code",
+    "title": "Clean Code",
+    "subtitle": "Full beginner→advanced course — free",
+    "cta_text": "Start Learning",
+    "cta_href": "https://scrimba.com/introduction-to-clean-code-c025",
+    "open_new_tab": true
+  },
+  {
+    "id": "res-js-good-parts",
+    "title": "JavaScript: Modern Fundamentals",
+    "subtitle": "Full beginner→advanced course — free",
+    "cta_text": "Start Learning",
+    "cta_href": "https://www.freecodecamp.org/news/full-javascript-course-for-beginners/",
+    "open_new_tab": true
+  },
+  {
+    "id": "res-coding-interview",
+    "title": "Cracking the Coding Interview (DSA Patterns)",
+    "subtitle": "Full beginner→advanced course — free",
+    "cta_text": "Start Learning",
+    "cta_href": "https://www.freecodecamp.org/news/data-structure-and-algorithm-patterns-for-leetcode-interviews/",
+    "open_new_tab": true
+  }
+];
