@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, TrendingUp, Award, Star, Search, Users, Calendar, Download, Plus, Filter, ArrowRight } from 'lucide-react';
+import { CheckCircle, TrendingUp, Award, Star, Search, Users, Calendar, Download, Plus, Filter, ArrowRight, Link as LinkIcon } from 'lucide-react';
 import { Button } from './Button';
 import { InviteInterviewModal } from './InviteInterviewModal';
 import { GatingModal } from './GatingModal';
@@ -41,7 +41,7 @@ export const MockInterviews = () => {
     const [sessions, setSessions] = useState<MockSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     // Modals
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [selectedPartner, setSelectedPartner] = useState<InterviewPartner | null>(null);
@@ -63,6 +63,50 @@ export const MockInterviews = () => {
     useEffect(() => {
         loadData();
     }, [activeTab]);
+
+    useEffect(() => {
+        const checkInviteParam = async () => {
+            const params = new URLSearchParams(window.location.search);
+            const inviteId = params.get('invite');
+            if (inviteId && inviteId !== user?.uid && activeTab === 'find') {
+                try {
+                    let partner = partners.find(p => p.id === inviteId);
+                    if (!partner) {
+                        const profile = await api.getUserProfile(inviteId);
+                        if (profile) {
+                            partner = {
+                                id: profile.id,
+                                name: profile.display_name || `${profile.first_name} ${profile.last_name}`,
+                                role: profile.headline || 'Peer',
+                                company: '',
+                                experience_level: 'Intermediate',
+                                rating: 5.0,
+                                tests_completed: 0,
+                                next_available: 'Available Now',
+                                avatar_url: profile.photo_url || `https://ui-avatars.com/api/?name=${profile.first_name || 'User'}`,
+                                skills: profile.skills || [],
+                                short_bio: profile.bio || '',
+                                timezone: profile.location || 'Remote',
+                                availability_published: true,
+                                email: profile.email || ''
+                            };
+                        }
+                    }
+                    if (partner) {
+                        handleInvite(partner);
+                        const url = new URL(window.location.href);
+                        url.searchParams.delete('invite');
+                        window.history.replaceState({ view: 'mock-interviews' }, '', url.toString());
+                    }
+                } catch (e) {
+                    console.error("Failed to load invite partner", e);
+                }
+            }
+        };
+        if (!loading && partners.length > 0) {
+            checkInviteParam();
+        }
+    }, [partners, loading, activeTab]);
 
     const loadData = async () => {
         setLoading(true);
@@ -100,6 +144,13 @@ export const MockInterviews = () => {
         loadData();
     };
 
+    const handleShareLink = () => {
+        if (!user) return;
+        const url = `${window.location.origin}/?view=mock-interviews&invite=${user.uid}`;
+        navigator.clipboard.writeText(url);
+        setToastMsg("Personal invite link copied to clipboard!");
+    };
+
     const handleCancelSession = (session: MockSession) => {
         setSessionToDelete(session);
         setShowDeleteModal(true);
@@ -107,7 +158,7 @@ export const MockInterviews = () => {
 
     const confirmDeleteSession = async () => {
         if (!sessionToDelete) return;
-        
+
         setIsDeleting(true);
         try {
             await api.cancelSession(sessionToDelete.id);
@@ -201,15 +252,15 @@ export const MockInterviews = () => {
 
     const handleOpenProfileFromSession = async (partnerId: string) => {
         try {
-             // Try to find partner in loaded partners first to avoid API call if possible, or just use API
-             const partner = partners.find(p => p.id === partnerId);
-             if (partner) {
-                 handleOpenProfileFromPartner(partner);
-             } else {
-                 const profile = await api.getUserProfile(partnerId);
-                 setSelectedProfile(profile);
-                 setShowProfileModal(true);
-             }
+            // Try to find partner in loaded partners first to avoid API call if possible, or just use API
+            const partner = partners.find(p => p.id === partnerId);
+            if (partner) {
+                handleOpenProfileFromPartner(partner);
+            } else {
+                const profile = await api.getUserProfile(partnerId);
+                setSelectedProfile(profile);
+                setShowProfileModal(true);
+            }
         } catch (e) {
             console.error("Failed to load profile", e);
             setToastMsg("Failed to load profile");
@@ -226,7 +277,7 @@ export const MockInterviews = () => {
         setShowNotesModal(true);
     };
 
-    const filteredPartners = partners.filter(p => 
+    const filteredPartners = partners.filter(p =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.company && p.company.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -241,7 +292,7 @@ export const MockInterviews = () => {
     return (
         <div className="min-h-screen bg-slate-50/50">
             {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
-            
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
@@ -250,61 +301,62 @@ export const MockInterviews = () => {
                         <p className="text-slate-500 mt-2">Practice with peers, get feedback, and improve your interview skills.</p>
                     </div>
                     <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                        <button 
+                        <button
                             onClick={() => setActiveTab('find')}
-                            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                                activeTab === 'find' 
-                                ? 'bg-slate-900 text-white shadow-md' 
-                                : 'text-slate-600 hover:bg-slate-50'
-                            }`}
+                            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'find'
+                                    ? 'bg-slate-900 text-white shadow-md'
+                                    : 'text-slate-600 hover:bg-slate-50'
+                                }`}
                         >
                             Find Partner
                         </button>
-                        <button 
+                        <button
                             onClick={() => setActiveTab('schedule')}
-                            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                                activeTab === 'schedule' 
-                                ? 'bg-slate-900 text-white shadow-md' 
-                                : 'text-slate-600 hover:bg-slate-50'
-                            }`}
+                            className={`px-6 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'schedule'
+                                    ? 'bg-slate-900 text-white shadow-md'
+                                    : 'text-slate-600 hover:bg-slate-50'
+                                }`}
                         >
                             My Schedule
                         </button>
                     </div>
+                    <Button variant="outline" className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm" onClick={handleShareLink}>
+                        <LinkIcon className="w-4 h-4 mr-2" /> Share My Link
+                    </Button>
                 </div>
 
                 {/* Metrics Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <MetricCard 
-                        label="Practices Completed" 
-                        value="2" 
-                        icon={CheckCircle} 
-                        iconColor="text-blue-600" 
-                        iconBg="bg-blue-50" 
+                    <MetricCard
+                        label="Practices Completed"
+                        value="2"
+                        icon={CheckCircle}
+                        iconColor="text-blue-600"
+                        iconBg="bg-blue-50"
                     />
-                    <MetricCard 
-                        label="Avg Score" 
-                        value="82" 
-                        icon={Star} 
-                        iconColor="text-amber-500" 
+                    <MetricCard
+                        label="Avg Score"
+                        value="82"
+                        icon={Star}
+                        iconColor="text-amber-500"
                         iconBg="bg-amber-50"
                         subtext="Top 15%"
                         subtextColor="text-emerald-600"
                     />
-                    <MetricCard 
-                        label="Improvement" 
-                        value="+0%" 
-                        icon={TrendingUp} 
-                        iconColor="text-emerald-500" 
+                    <MetricCard
+                        label="Improvement"
+                        value="+0%"
+                        icon={TrendingUp}
+                        iconColor="text-emerald-500"
                         iconBg="bg-emerald-50"
                         subtext="Last 3 sessions"
                         subtextColor="text-emerald-600"
                     />
-                    <MetricCard 
-                        label="Interview Ready" 
-                        value="50%" 
-                        icon={Award} 
-                        iconColor="text-purple-500" 
+                    <MetricCard
+                        label="Interview Ready"
+                        value="50%"
+                        icon={Award}
+                        iconColor="text-purple-500"
                         iconBg="bg-purple-50"
                         subtext="Based on rubric"
                         subtextColor="text-emerald-600"
@@ -314,16 +366,16 @@ export const MockInterviews = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     {/* Main Content Area */}
                     <div className="lg:col-span-8 space-y-6">
-                        
+
                         {activeTab === 'find' && (
                             <>
                                 {/* Search & Filter */}
                                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex gap-4">
                                     <div className="relative flex-1">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-                                        <input 
-                                            type="text" 
-                                            placeholder="Search by role, company, or name..." 
+                                        <input
+                                            type="text"
+                                            placeholder="Search by role, company, or name..."
                                             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-transparent rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -339,10 +391,10 @@ export const MockInterviews = () => {
                                         ))
                                     ) : (
                                         filteredPartners.map(partner => (
-                                            <PartnerCard 
-                                                key={partner.id} 
-                                                partner={partner} 
-                                                onInvite={() => handleInvite(partner)} 
+                                            <PartnerCard
+                                                key={partner.id}
+                                                partner={partner}
+                                                onInvite={() => handleInvite(partner)}
                                                 onProfileClick={() => handleOpenProfileFromPartner(partner)}
                                             />
                                         ))
@@ -362,9 +414,9 @@ export const MockInterviews = () => {
                                 ) : sessions.length > 0 ? (
                                     <div className="space-y-4">
                                         {sessions.map(session => (
-                                            <SessionRow 
-                                                key={session.id} 
-                                                session={session} 
+                                            <SessionRow
+                                                key={session.id}
+                                                session={session}
                                                 onCancel={handleCancelSession}
                                                 onJoin={handleJoinCall}
                                                 onOpenProfile={handleOpenProfileFromSession}
@@ -390,7 +442,7 @@ export const MockInterviews = () => {
                     {/* Right Sidebar */}
                     <div className="lg:col-span-4 space-y-6 sticky top-24 h-fit">
                         <PracticePlanCard tasks={mockTasks} onStartPlan={() => setShowPracticePlanModal(true)} />
-                        
+
                         {/* Metrics or other sidebar items could go here */}
                         <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 text-white shadow-lg shadow-indigo-900/20">
                             <div className="flex items-center gap-3 mb-4">
@@ -426,31 +478,31 @@ export const MockInterviews = () => {
             </div>
 
             {/* Modals */}
-            <InviteInterviewModal 
+            <InviteInterviewModal
                 isOpen={showInviteModal}
                 onClose={() => setShowInviteModal(false)}
                 partner={selectedPartner}
                 onSuccess={handleInviteSuccess}
             />
 
-            <ProfileSuccessModal 
+            <ProfileSuccessModal
                 isOpen={showSuccessModal}
                 onClose={() => setShowSuccessModal(false)}
             />
 
-            <PracticePlanModal 
+            <PracticePlanModal
                 isOpen={showPracticePlanModal}
                 onClose={() => setShowPracticePlanModal(false)}
                 plan={mockTasks}
             />
 
-            <DeleteConfirmationModal 
+            <DeleteConfirmationModal
                 isOpen={showDeleteModal}
                 onClose={() => setShowDeleteModal(false)}
                 onConfirm={confirmDeleteSession}
                 title={sessionToDelete?.status === 'pending' ? "Cancel Request" : "Delete Session"}
-                message={sessionToDelete?.status === 'pending' 
-                    ? "Are you sure you want to cancel this interview request? This action cannot be undone." 
+                message={sessionToDelete?.status === 'pending'
+                    ? "Are you sure you want to cancel this interview request? This action cannot be undone."
                     : "Are you sure you want to delete this session? This will remove it from your history."}
                 confirmLabel={sessionToDelete?.status === 'pending' ? "Cancel Request" : "Delete"}
                 isDeleting={isDeleting}
@@ -458,7 +510,7 @@ export const MockInterviews = () => {
 
             {selectedSession && (
                 <>
-                    <SessionFeedbackModal 
+                    <SessionFeedbackModal
                         isOpen={showFeedbackModal}
                         onClose={() => setShowFeedbackModal(false)}
                         session={selectedSession}
@@ -468,7 +520,7 @@ export const MockInterviews = () => {
                             loadData();
                         }}
                     />
-                    <SessionNotesModal 
+                    <SessionNotesModal
                         isOpen={showNotesModal}
                         onClose={() => setShowNotesModal(false)}
                         session={selectedSession}
@@ -482,7 +534,7 @@ export const MockInterviews = () => {
             )}
 
             {selectedProfile && (
-                <PeerProfileModal 
+                <PeerProfileModal
                     isOpen={showProfileModal}
                     onClose={() => setShowProfileModal(false)}
                     profile={selectedProfile}

@@ -43,7 +43,7 @@ export interface UserProfile {
   location?: string;
   current_role?: string;
   experience_level?: ExperienceLevel;
-  
+
   // Professional Info
   skills: string[];
   target_role: string;
@@ -114,7 +114,7 @@ export interface Task {
   tags: string[];
   startDate?: string;
   dueDate?: string;
-  members: { name: string; avatar: string }[]; 
+  members: { name: string; avatar: string }[];
   assigneeId?: string;
   subtasks: { completed: number; total: number };
   checklist?: ChecklistItem[];
@@ -165,7 +165,7 @@ export interface MockSession {
   partner_name: string;
   partner_avatar: string;
   partner_role: string;
-  proposed_times: string; 
+  proposed_times: string;
   meeting_link?: string; // Validated as required in UI
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   created_at: string;
@@ -245,6 +245,7 @@ export interface Group {
 export interface Comment {
   id: string;
   postId: string;
+  authorId?: string;
   author: {
     name: string;
     avatar: string;
@@ -257,11 +258,12 @@ export interface Comment {
 export interface Post {
   id: string;
   groupId?: string; // If belongs to a group
-  author: { 
-    name: string; 
-    avatar: string; 
-    level?: string; 
-    matchPercentage?: number; 
+  authorId?: string;
+  author: {
+    name: string;
+    avatar: string;
+    level?: string;
+    matchPercentage?: number;
   };
   content: string;
   tags: string[];
@@ -295,24 +297,24 @@ export interface ActivityItem {
 }
 
 export interface Conversation {
-    id: string;
-    recipientName: string;
-    recipientAvatar: string;
-    lastMessage: string;
-    timestamp: string;
-    unreadCount: number;
+  id: string;
+  recipientName: string;
+  recipientAvatar: string;
+  lastMessage: string;
+  timestamp: string;
+  unreadCount: number;
 }
 
 // --- Resource Types ---
-export interface Resource { 
-  id: string; 
-  title: string; 
+export interface Resource {
+  id: string;
+  title: string;
   type: string; // Video, Course, Article, Book
-  author: string; 
-  rating: number; 
-  reviews: number; 
-  duration: string; 
-  level: 'Beginner' | 'Intermediate' | 'Advanced'; 
+  author: string;
+  rating: number;
+  reviews: number;
+  duration: string;
+  level: 'Beginner' | 'Intermediate' | 'Advanced';
   image: string; // URL or placeholder
   why: string; // "Why we recommend this"
   link?: string; // External URL
@@ -402,16 +404,16 @@ export interface CatalogData {
 }
 
 export interface UserModuleProgress {
-    status: 'locked' | 'in_progress' | 'completed';
+  status: 'locked' | 'in_progress' | 'completed';
 }
 
 export interface UserProjectProgress {
-    isCompleted: boolean;
+  isCompleted: boolean;
 }
 
 export interface UserCourseProgressState {
-    modules: Record<number, UserModuleProgress>; // Keyed by module order
-    projects: Record<string, UserProjectProgress>; // Keyed by project title
+  modules: Record<number, UserModuleProgress>; // Keyed by module order
+  projects: Record<string, UserProjectProgress>; // Keyed by project title
 }
 
 // --- Legacy / Shared Types ---

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
     CheckCircle, Lock, ExternalLink, ChevronDown, ChevronUp, BookOpen, Award, ArrowRight, Zap, Clock, Search, List, CheckSquare, Square, Star,
     Database, FlaskConical, BarChart3, Bot, Brain, Layers, Code, Cloud, Shield, TrendingUp, ClipboardList
 } from 'lucide-react';
@@ -48,6 +48,12 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
     }, []);
 
     useEffect(() => {
+        if (initialSearchTerm !== undefined) {
+            setSearchQuery(initialSearchTerm);
+        }
+    }, [initialSearchTerm]);
+
+    useEffect(() => {
         if (activeCourseSlug) {
             loadCourse(activeCourseSlug);
         }
@@ -75,7 +81,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
             if (course) setActiveCourse(course);
             setCourseProgress(progress);
             setViewMode('course');
-            
+
             // Auto-expand the first in-progress or first locked module
             if (progress && course?.modules) {
                 const firstInProgress = course.modules.find(m => progress.modules[m.order]?.status === 'in_progress');
@@ -93,7 +99,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
     };
 
     const handleModuleToggle = (moduleOrder: number) => {
-        setExpandedModules(prev => 
+        setExpandedModules(prev =>
             prev.includes(moduleOrder) ? prev.filter(order => order !== moduleOrder) : [...prev, moduleOrder]
         );
     };
@@ -131,7 +137,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
         }
     };
 
-    const filteredCourses = catalog?.courses.filter(c => 
+    const filteredCourses = catalog?.courses.filter(c =>
         (c.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         (c.shortDesc?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         (c.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -161,7 +167,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
     return (
         <div className="min-h-screen bg-slate-50 pt-20 pb-16 font-sans">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                
+
                 {viewMode === 'catalog' ? (
                     <div className="space-y-12">
                         {/* Catalog Header - Image 2 Style */}
@@ -171,18 +177,26 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                 <p className="text-lg text-slate-500 mb-8 leading-relaxed">
                                     Curated collection of the best free courses, tutorials, and learning materials for your skill development.
                                 </p>
-                                
+
                                 <div className="relative max-w-2xl">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                         <Search className="h-5 w-5 text-slate-400" />
                                     </div>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Search resources by title or keyword..." 
+                                    <input
+                                        type="text"
+                                        placeholder="Search resources by title or keyword..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-11 pr-4 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-primary-100 focus:border-primary-500 outline-none shadow-sm text-slate-900 placeholder-slate-400 transition-all"
+                                        className="w-full pl-11 pr-24 py-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-primary-100 focus:border-primary-500 outline-none shadow-sm text-slate-900 placeholder-slate-400 transition-all"
                                     />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-primary-50 text-primary-600 font-semibold text-sm rounded-lg hover:bg-primary-100 transition-colors"
+                                        >
+                                            View all
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             {/* Decorative background element */}
@@ -195,63 +209,63 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                 const theme = getCourseTheme(course.slug);
                                 const CourseIcon = theme.icon;
                                 return (
-                                <div key={course.slug} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full overflow-hidden group gradient-ring fade-up">
-                                    {/* Image Placeholder Area */}
-                                    <div className={`h-48 ${theme.bg} relative flex items-center justify-center overflow-hidden`}>
-                                        {/* Placeholder Pattern */}
-                                        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(currentColor_1px,transparent_1px)] [background-size:16px_16px] text-slate-900"></div>
-                                        <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center z-10">
-                                            <CourseIcon className={`w-8 h-8 ${theme.color}`} />
-                                        </div>
-                                        
-                                        {/* Badge */}
-                                        <div className="absolute top-4 right-4">
-                                            <span className="px-3 py-1 bg-primary-600 text-white text-xs font-bold rounded-full shadow-sm">
-                                                Course
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-6 flex flex-col flex-grow">
-                                        <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">{course.title}</h3>
-                                        <p className="text-sm text-slate-500 line-clamp-3 mb-6 flex-grow">{course.shortDesc}</p>
-                                        
-                                        <div className="flex items-center gap-4 text-xs text-slate-500 mb-6">
-                                            <div className="flex items-center gap-1">
-                                                <Clock className="w-4 h-4" />
-                                                <span>{course.modules?.reduce((acc, m) => acc + m.estimatedMinutes, 0) ? Math.round(course.modules.reduce((acc, m) => acc + m.estimatedMinutes, 0) / 60) + ' hours' : 'Self-paced'}</span>
+                                    <div key={course.slug} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full overflow-hidden group gradient-ring fade-up">
+                                        {/* Image Placeholder Area */}
+                                        <div className={`h-48 ${theme.bg} relative flex items-center justify-center overflow-hidden`}>
+                                            {/* Placeholder Pattern */}
+                                            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(currentColor_1px,transparent_1px)] [background-size:16px_16px] text-slate-900"></div>
+                                            <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center z-10">
+                                                <CourseIcon className={`w-8 h-8 ${theme.color}`} />
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <Star className="w-4 h-4 text-amber-400 fill-current" />
-                                                <span className="font-medium text-slate-700">4.8</span>
-                                                <span className="text-slate-400">(120)</span>
+
+                                            {/* Badge */}
+                                            <div className="absolute top-4 right-4">
+                                                <span className="px-3 py-1 bg-primary-600 text-white text-xs font-bold rounded-full shadow-sm">
+                                                    Course
+                                                </span>
                                             </div>
                                         </div>
 
-                                        {/* Progress Bar Placeholder (Visual only as per Image 3) */}
-                                        <div className="w-full bg-slate-100 h-1.5 rounded-full mb-6 overflow-hidden">
-                                            <div className="bg-primary-500 h-full rounded-full w-1/3"></div>
-                                        </div>
+                                        <div className="p-6 flex flex-col flex-grow">
+                                            <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">{course.title}</h3>
+                                            <p className="text-sm text-slate-500 line-clamp-3 mb-6 flex-grow">{course.shortDesc}</p>
 
-                                        <div className="mt-auto">
-                                            {course.isMvpCardOnly ? (
-                                                <button 
-                                                    disabled
-                                                    className="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed text-sm"
-                                                >
-                                                    Coming Soon
-                                                </button>
-                                            ) : (
-                                                <button 
-                                                    onClick={() => setActiveCourseSlug(course.slug)}
-                                                    className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-primary-600/20 text-sm"
-                                                >
-                                                    Start Learning
-                                                </button>
-                                            )}
+                                            <div className="flex items-center gap-4 text-xs text-slate-500 mb-6">
+                                                <div className="flex items-center gap-1">
+                                                    <Clock className="w-4 h-4" />
+                                                    <span>{course.modules?.reduce((acc, m) => acc + m.estimatedMinutes, 0) ? Math.round(course.modules.reduce((acc, m) => acc + m.estimatedMinutes, 0) / 60) + ' hours' : 'Self-paced'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Star className="w-4 h-4 text-amber-400 fill-current" />
+                                                    <span className="font-medium text-slate-700">4.8</span>
+                                                    <span className="text-slate-400">(120)</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Progress Bar Placeholder (Visual only as per Image 3) */}
+                                            <div className="w-full bg-slate-100 h-1.5 rounded-full mb-6 overflow-hidden">
+                                                <div className="bg-primary-500 h-full rounded-full w-1/3"></div>
+                                            </div>
+
+                                            <div className="mt-auto">
+                                                {course.isMvpCardOnly ? (
+                                                    <button
+                                                        disabled
+                                                        className="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed text-sm"
+                                                    >
+                                                        Coming Soon
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setActiveCourseSlug(course.slug)}
+                                                        className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-primary-600/20 text-sm"
+                                                    >
+                                                        Start Learning
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
                                 );
                             })}
                         </div>
@@ -261,18 +275,18 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                             <div className="flex items-center justify-between mb-8">
                                 <h2 className="text-2xl font-bold text-slate-900">Recommended Resources</h2>
                             </div>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                 {resourcesData.map(resource => (
                                     <div key={resource.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full overflow-hidden group gradient-ring fade-up">
                                         <div className="p-6 flex flex-col flex-grow">
                                             <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-2 group-hover:text-primary-600 transition-colors">{resource.title}</h3>
-                                            
+
                                             <p className="text-sm text-slate-500 mb-6 mt-auto font-medium">
                                                 {resource.subtitle}
                                             </p>
 
-                                            <a 
+                                            <a
                                                 href={resource.cta_href}
                                                 target={resource.open_new_tab ? "_blank" : undefined}
                                                 rel={resource.open_new_tab ? "noopener noreferrer" : undefined}
@@ -295,26 +309,27 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                         <div className="space-y-8">
                             {/* Course Header */}
                             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                                <button 
+                                <button
                                     onClick={() => {
                                         setViewMode('catalog');
                                         setActiveCourseSlug(null);
                                         setActiveCourse(null);
+                                        setSearchQuery('');
                                     }}
-                                    className="group flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm mb-6"
+                                    className="group flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 font-semibold rounded-lg hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all shadow-sm mb-6 inline-flex"
                                 >
                                     <div className="p-1 bg-slate-100 rounded-md group-hover:bg-slate-200 transition-colors">
                                         <ArrowRight className="w-4 h-4 rotate-180" />
                                     </div>
-                                    Back to Catalog
+                                    View all roadmaps
                                 </button>
-                                
+
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                                     <div>
                                         <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">{activeCourse.title}</h1>
                                         <p className="text-slate-500">{activeCourse.shortDesc}</p>
                                     </div>
-                                    
+
                                     {/* Progress Card */}
                                     <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 min-w-[200px]">
                                         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Course Progress</div>
@@ -325,7 +340,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                             <span className="text-sm text-slate-400 mb-1">completed</span>
                                         </div>
                                         <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                                            <div 
+                                            <div
                                                 className="bg-primary-600 h-full rounded-full transition-all duration-500"
                                                 style={{ width: `${Math.round(((Object.values(courseProgress?.modules || {}) as UserModuleProgress[]).filter(m => m.status === 'completed').length / (activeCourse.modules?.length || 1)) * 100)}%` }}
                                             ></div>
@@ -334,7 +349,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                 </div>
 
                                 {isProjectsUnlocked() && (
-                                    <motion.div 
+                                    <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         className="mt-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-4 text-white flex items-center justify-between shadow-lg"
@@ -348,7 +363,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                                 <p className="text-indigo-100 text-sm">You're ready to build your portfolio.</p>
                                             </div>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 const element = document.getElementById('projects-section');
                                                 element?.scrollIntoView({ behavior: 'smooth' });
@@ -372,7 +387,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
 
                                         return (
                                             <div key={module.order} className={`bg-white rounded-xl border transition-all duration-200 ${isCompleted ? 'border-green-200 shadow-sm' : isLocked ? 'border-slate-100 bg-slate-50 opacity-75' : 'border-primary-100 shadow-md ring-1 ring-primary-50'}`}>
-                                                <button 
+                                                <button
                                                     onClick={() => !isLocked && handleModuleToggle(module.order)}
                                                     disabled={isLocked}
                                                     className="w-full flex items-center justify-between p-5 text-left focus:outline-none"
@@ -395,7 +410,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
 
                                                 <AnimatePresence>
                                                     {isExpanded && !isLocked && (
-                                                        <motion.div 
+                                                        <motion.div
                                                             initial={{ height: 0, opacity: 0 }}
                                                             animate={{ height: "auto", opacity: 1 }}
                                                             exit={{ height: 0, opacity: 0 }}
@@ -403,7 +418,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                                         >
                                                             <div className="p-5 pt-0 space-y-6">
                                                                 <div className="h-px bg-slate-100"></div>
-                                                                
+
                                                                 {/* Outcome */}
                                                                 <div className="bg-slate-50 p-3 rounded-lg text-sm text-slate-600 italic border border-slate-100">
                                                                     Goal: {module.outcome}
@@ -427,7 +442,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                                                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Learning Resources</h4>
                                                                     <div className="space-y-2">
                                                                         {module.resources.map((resource, i) => (
-                                                                            <a 
+                                                                            <a
                                                                                 key={i}
                                                                                 href={resource.url}
                                                                                 target="_blank"
@@ -453,7 +468,7 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                                                         <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Practice & Tests</h4>
                                                                         <div className="space-y-2">
                                                                             {module.tests.map((test, i) => (
-                                                                                <a 
+                                                                                <a
                                                                                     key={i}
                                                                                     href={test.url}
                                                                                     target="_blank"
@@ -478,11 +493,10 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                                                     <button
                                                                         onClick={() => handleMarkModuleComplete(module.order)}
                                                                         disabled={isCompleted}
-                                                                        className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${
-                                                                            isCompleted 
-                                                                            ? 'bg-green-100 text-green-700 cursor-default' 
+                                                                        className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${isCompleted
+                                                                            ? 'bg-green-100 text-green-700 cursor-default'
                                                                             : 'bg-slate-900 text-white hover:bg-slate-800'
-                                                                        }`}
+                                                                            }`}
                                                                     >
                                                                         {isCompleted ? (
                                                                             <>
@@ -512,14 +526,14 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                             {isProjectsUnlocked() ? <Award className="w-5 h-5 text-indigo-600" /> : <Lock className="w-4 h-4 text-slate-400" />}
                                             Capstone Projects
                                         </h3>
-                                        
+
                                         {!isProjectsUnlocked() ? (
                                             <p className="text-sm text-slate-500">
                                                 Complete all required modules to unlock the capstone projects and build your portfolio.
                                             </p>
                                         ) : (
                                             <div className="space-y-4">
-                                                <button 
+                                                <button
                                                     onClick={() => onNavigate?.('projects')}
                                                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 mb-2"
                                                 >
@@ -531,12 +545,12 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                                 </p>
                                                 {activeCourse.projects?.map((project, i) => {
                                                     const isProjectCompleted = courseProgress?.projects[project.title]?.isCompleted;
-                                                    
+
                                                     return (
                                                         <div key={i} className="border border-slate-100 rounded-lg p-3 bg-slate-50 hover:bg-white transition-colors">
                                                             <div className="flex items-start justify-between mb-2">
                                                                 <h4 className="font-semibold text-slate-800 text-sm">{project.title}</h4>
-                                                                <button 
+                                                                <button
                                                                     onClick={() => handleMarkProjectComplete(project.title)}
                                                                     className={`text-xs p-1 rounded ${isProjectCompleted ? 'text-green-600 bg-green-100' : 'text-slate-400 hover:text-indigo-600'}`}
                                                                 >
@@ -565,18 +579,17 @@ export const ResourcesRoadmap: React.FC<ResourcesRoadmapProps> = ({ onNavigate, 
                                             Mock Interview
                                         </h3>
                                         <p className={`text-sm mb-4 ${isMockInterviewUnlocked() ? 'text-primary-100' : 'text-slate-500'}`}>
-                                            {isMockInterviewUnlocked() 
-                                                ? "You're ready! Start a peer mock interview to practice your storytelling." 
+                                            {isMockInterviewUnlocked()
+                                                ? "You're ready! Start a peer mock interview to practice your storytelling."
                                                 : "Complete at least one capstone project to unlock mock interviews."}
                                         </p>
-                                        <button 
+                                        <button
                                             disabled={!isMockInterviewUnlocked()}
                                             onClick={() => onNavigate?.('mock-interviews')}
-                                            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors ${
-                                                isMockInterviewUnlocked() 
-                                                ? 'bg-white text-primary-700 hover:bg-primary-50' 
+                                            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors ${isMockInterviewUnlocked()
+                                                ? 'bg-white text-primary-700 hover:bg-primary-50'
                                                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                            }`}
+                                                }`}
                                         >
                                             Start Mock Interview
                                         </button>

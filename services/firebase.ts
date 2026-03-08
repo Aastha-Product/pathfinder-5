@@ -1,27 +1,30 @@
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User
 } from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  onSnapshot, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
   addDoc,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 
@@ -36,10 +39,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const functions = getFunctions(app);
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const functions = getFunctions(app);
 
 // --- Auth ---
 export const signInWithGoogle = async () => {
@@ -51,6 +54,14 @@ export const signInWithGoogle = async () => {
     console.error("Error signing in with Google", error);
     throw error;
   }
+};
+
+export const signUpWithEmail = async (email: string, pass: string) => {
+  return createUserWithEmailAndPassword(auth, email, pass);
+};
+
+export const signInWithEmail = async (email: string, pass: string) => {
+  return signInWithEmailAndPassword(auth, email, pass);
 };
 
 export const logout = () => firebaseSignOut(auth);
@@ -103,10 +114,10 @@ export const updateProjectBoard = async (projectId: string, tasks: any[]) => {
   // Assuming tasks are stored in a subcollection or array. 
   // For subcollection 'board':
   // This is a simplified example. Real implementation depends on data structure.
-  const batch = db.batch(); // Use batch for multiple updates
+  const batch = writeBatch(db); // Use batch for multiple updates
   tasks.forEach(task => {
-      const taskRef = doc(db, 'projects', projectId, 'board', task.id);
-      batch.set(taskRef, task, { merge: true });
+    const taskRef = doc(db, 'projects', projectId, 'board', task.id);
+    batch.set(taskRef, task, { merge: true });
   });
   await batch.commit();
 };

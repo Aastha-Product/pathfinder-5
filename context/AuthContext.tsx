@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { subscribeToAuthChanges, signInWithEmail, signUpWithEmail, logout } from '../services/firebase';
 
-// Mock User Type
 export interface AuthUser {
   uid: string;
   email: string | null;
@@ -12,8 +12,8 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  signIn: (email: string) => Promise<void>;
-  signUp: (email: string, name: string) => Promise<void>;
+  signIn: (email: string, password?: string) => Promise<void>;
+  signUp: (email: string, name: string, password?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -24,58 +24,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for mock session to persist across refresh
-    const storedUser = localStorage.getItem('pathfinder_mock_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse stored user", e);
+    const unsubscribe = subscribeToAuthChanges((firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL
+        });
+      } else {
+        setUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
-  const signIn = async (email: string) => {
+  const signIn = async (email: string, password?: string) => {
     setLoading(true);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const mockUser: AuthUser = {
-      uid: 'mock-user-123',
-      email: email,
-      displayName: 'Demo User',
-      photoURL: null
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('pathfinder_mock_user', JSON.stringify(mockUser));
-    setLoading(false);
+    try {
+      if (password) {
+        await signInWithEmail(email, password);
+      } else {
+        throw new Error("Password required");
+      }
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
   };
 
-  const signUp = async (email: string, name: string) => {
+  const signUp = async (email: string, name: string, password?: string) => {
     setLoading(true);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const mockUser: AuthUser = {
-      uid: 'mock-user-123',
-      email: email,
-      displayName: name,
-      photoURL: null
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('pathfinder_mock_user', JSON.stringify(mockUser));
-    setLoading(false);
+    try {
+      if (password) {
+        await signUpWithEmail(email, password);
+      } else {
+        throw new Error("Password required");
+      }
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
   };
 
   const signOut = async () => {
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    setUser(null);
-    localStorage.removeItem('pathfinder_mock_user');
-    setLoading(false);
+    try {
+      await logout();
+    } catch (error) {
+      setLoading(false);
+      throw error;
+    }
   };
 
   return (

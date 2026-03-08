@@ -1,10 +1,10 @@
 
-import { 
-  Users, 
-  Map, 
-  MessageSquare, 
-  BookOpen, 
-  Briefcase, 
+import {
+  Users,
+  Map,
+  MessageSquare,
+  BookOpen,
+  Briefcase,
   Code,
   TrendingUp,
   Award,
@@ -40,6 +40,69 @@ export const HERO_METRICS: Metric[] = [
 ];
 
 export const HERO_PILLS = ['Python', 'React', 'SQL', 'Data Science'];
+
+export const POPULAR_ROADMAPS: Resource[] = [
+  {
+    id: 'pr-1',
+    title: 'SQL Developer',
+    type: 'Course',
+    author: '',
+    rating: 4.8,
+    reviews: 120,
+    duration: '9 hours',
+    level: 'Beginner',
+    image: '',
+    why: 'Master SQL from scratch: queries, joins, database design, and performance tuning for data roles.',
+    tags: ['SQL', 'Data'],
+    provider: 'Pathfinder',
+    slug: 'sql-developer'
+  },
+  {
+    id: 'pr-2',
+    title: 'Data Science',
+    type: 'Course',
+    author: '',
+    rating: 4.8,
+    reviews: 120,
+    duration: '23 hours',
+    level: 'Intermediate',
+    image: '',
+    why: 'Math + Python + SQL + ML + optional deep learning + deployment basics.',
+    tags: ['Python', 'Data Science', 'Machine Learning'],
+    provider: 'Pathfinder',
+    slug: 'data-science'
+  },
+  {
+    id: 'pr-3',
+    title: 'Data Analytics',
+    type: 'Course',
+    author: '',
+    rating: 4.8,
+    reviews: 120,
+    duration: '14 hours',
+    level: 'Beginner',
+    image: '',
+    why: 'Excel + SQL + Python + Dashboards + basic statistics for job-ready analytics.',
+    tags: ['Excel', 'SQL', 'Python', 'Analytics'],
+    provider: 'Pathfinder',
+    slug: 'data-analytics'
+  },
+  {
+    id: 'pr-4',
+    title: 'Machine Learning Engineer',
+    type: 'Course',
+    author: '',
+    rating: 4.8,
+    reviews: 120,
+    duration: '29 hours',
+    level: 'Advanced',
+    image: '',
+    why: 'End-to-end ML engineering: algorithms, tuning, deep learning basics, GenAI intro, and MLOps...',
+    tags: ['Machine Learning', 'AI', 'MLOps'],
+    provider: 'Pathfinder',
+    slug: 'machine-learning-engineer'
+  }
+];
 
 export const CURATED_RESOURCES: Resource[] = [
   {

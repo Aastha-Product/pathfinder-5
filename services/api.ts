@@ -1,6 +1,8 @@
 
-import { InterviewPartner, MockSession, AIPlanTask, InterviewMetrics, UserProfile, Feedback, FeedbackScores, Post, Comment, Group, Conversation, ActivityItem, ChatMessage, RoadmapCategory, UserRoadmapProgress, RoadmapEvent, ModuleStatus, CatalogData, CourseData, UserCourseProgressState, CourseModule, ResourceItem, TestItem, UserModuleProgress, UserProjectProgress } from '../types';
+import { InterviewPartner, MockSession, AIPlanTask, InterviewMetrics, UserProfile, Feedback, FeedbackScores, Post, Comment, Group, Conversation, ActivityItem, ChatMessage, RoadmapCategory, UserRoadmapProgress, RoadmapEvent, ModuleStatus, CatalogData, CourseData, UserCourseProgressState, CourseModule, ResourceItem, TestItem, UserModuleProgress, UserProjectProgress, Project, Column } from '../types';
 import { CHAT_MESSAGES } from '../constants';
+import { db, auth } from './firebase';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, orderBy, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 
 // Simulate network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -58,16 +60,10 @@ const ROADMAP_CATEGORIES: RoadmapCategory[] = [
   }
 ];
 
-// Initialize progress from localStorage or default
-const getInitialProgress = (): UserRoadmapProgress => {
-  const stored = localStorage.getItem('roadmap_progress');
-  if (stored) {
-    return JSON.parse(stored);
-  }
-  
+export const getInitialProgress = (): UserRoadmapProgress => {
   // Default: First module of each category (except 4) is in-progress
   const initialStatuses: Record<number, ModuleStatus> = {};
-  
+
   // Set all to locked initially
   ROADMAP_CATEGORIES.forEach(cat => {
     cat.modules.forEach(mod => {
@@ -81,7 +77,7 @@ const getInitialProgress = (): UserRoadmapProgress => {
   });
 
   return {
-    userId: 'me',
+    userId: '',
     moduleStatuses: initialStatuses,
     completedModuleIds: [],
     lastUpdated: new Date().toISOString()
@@ -94,68 +90,68 @@ let ROADMAP_EVENTS: RoadmapEvent[] = [];
 // --- In-Memory Mock Data Storage ---
 
 let SESSIONS: MockSession[] = [
-    {
-        id: 's1',
-        inviter_id: 'p1',
-        invitee_id: 'me',
-        partner_name: 'David Kim',
-        partner_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
-        partner_role: 'Peer',
-        proposed_times: 'Tomorrow 10:00 AM PST',
-        meeting_link: 'https://meet.google.com/abc-defg-hij',
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        skill_tags: ['React', 'System Design'],
-        feedback_status: 'pending'
-    },
-    {
-        id: 's2',
-        inviter_id: 'me',
-        invitee_id: 'p1',
-        partner_name: 'David Kim',
-        partner_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
-        partner_role: 'Peer',
-        proposed_times: 'Tomorrow 10:00 AM PST',
-        meeting_link: 'https://meet.google.com/abc-defg-hij',
-        status: 'confirmed',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        confirmed_at: new Date().toISOString(),
-        skill_tags: ['React', 'System Design'],
-        feedback_status: 'pending'
-    },
-    {
-        id: 's3',
-        inviter_id: 'me',
-        invitee_id: 'p2',
-        partner_name: 'Sarah Chen',
-        partner_avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
-        partner_role: 'Mentor',
-        proposed_times: 'Feb 1, 2:00 PM',
-        meeting_link: 'https://meet.google.com/xyz-uvw-rst',
-        status: 'completed',
-        created_at: new Date('2024-02-01T14:00:00Z').toISOString(),
-        confirmed_at: new Date('2024-02-01T10:00:00Z').toISOString(),
-        completed_at: new Date('2024-02-01T15:00:00Z').toISOString(),
-        skill_tags: ['Behavioral', 'Product Management'],
-        feedback_status: 'submitted',
-        notes_private: 'Great session! Sarah gave excellent feedback on my STAR method.'
-    },
-    {
-        id: 's4',
-        inviter_id: 'p3',
-        invitee_id: 'me',
-        partner_name: 'Michael Chen',
-        partner_avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100',
-        partner_role: 'Peer',
-        proposed_times: 'Feb 5, 4:00 PM',
-        meeting_link: 'https://meet.google.com/new-link-here',
-        status: 'completed',
-        created_at: new Date('2024-02-05T14:00:00Z').toISOString(),
-        confirmed_at: new Date('2024-02-05T10:00:00Z').toISOString(),
-        completed_at: new Date('2024-02-05T17:00:00Z').toISOString(),
-        skill_tags: ['Python', 'Algorithms'],
-        feedback_status: 'pending'
-    }
+  {
+    id: 's1',
+    inviter_id: 'p1',
+    invitee_id: 'me',
+    partner_name: 'David Kim',
+    partner_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+    partner_role: 'Peer',
+    proposed_times: 'Tomorrow 10:00 AM PST',
+    meeting_link: 'https://meet.google.com/abc-defg-hij',
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    skill_tags: ['React', 'System Design'],
+    feedback_status: 'pending'
+  },
+  {
+    id: 's2',
+    inviter_id: 'me',
+    invitee_id: 'p1',
+    partner_name: 'David Kim',
+    partner_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+    partner_role: 'Peer',
+    proposed_times: 'Tomorrow 10:00 AM PST',
+    meeting_link: 'https://meet.google.com/abc-defg-hij',
+    status: 'confirmed',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    confirmed_at: new Date().toISOString(),
+    skill_tags: ['React', 'System Design'],
+    feedback_status: 'pending'
+  },
+  {
+    id: 's3',
+    inviter_id: 'me',
+    invitee_id: 'p2',
+    partner_name: 'Sarah Chen',
+    partner_avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+    partner_role: 'Mentor',
+    proposed_times: 'Feb 1, 2:00 PM',
+    meeting_link: 'https://meet.google.com/xyz-uvw-rst',
+    status: 'completed',
+    created_at: new Date('2024-02-01T14:00:00Z').toISOString(),
+    confirmed_at: new Date('2024-02-01T10:00:00Z').toISOString(),
+    completed_at: new Date('2024-02-01T15:00:00Z').toISOString(),
+    skill_tags: ['Behavioral', 'Product Management'],
+    feedback_status: 'submitted',
+    notes_private: 'Great session! Sarah gave excellent feedback on my STAR method.'
+  },
+  {
+    id: 's4',
+    inviter_id: 'p3',
+    invitee_id: 'me',
+    partner_name: 'Michael Chen',
+    partner_avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100',
+    partner_role: 'Peer',
+    proposed_times: 'Feb 5, 4:00 PM',
+    meeting_link: 'https://meet.google.com/new-link-here',
+    status: 'completed',
+    created_at: new Date('2024-02-05T14:00:00Z').toISOString(),
+    confirmed_at: new Date('2024-02-05T10:00:00Z').toISOString(),
+    completed_at: new Date('2024-02-05T17:00:00Z').toISOString(),
+    skill_tags: ['Python', 'Algorithms'],
+    feedback_status: 'pending'
+  }
 ];
 
 let FEEDBACKS: Feedback[] = [];
@@ -242,17 +238,17 @@ CURRENT_USER_PROFILE.profile_completion_percentage = calculateProfileCompletion(
 
 // --- Groups Data Store ---
 let GROUPS: Group[] = [
-    {
-        id: 'g1',
-        name: 'SQL Study Group',
-        description: 'Weekly practice for SQL Leetcode problems.',
-        ownerId: 'me',
-        visibility: 'Public',
-        maxMembers: 5,
-        members: ['You', 'Sarah Chen', 'David Kim'],
-        memberCount: 3,
-        createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
-    }
+  {
+    id: 'g1',
+    name: 'SQL Study Group',
+    description: 'Weekly practice for SQL Leetcode problems.',
+    ownerId: 'me',
+    visibility: 'Public',
+    maxMembers: 5,
+    members: ['You', 'Sarah Chen', 'David Kim'],
+    memberCount: 3,
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
+  }
 ];
 
 // --- Community Data Store ---
@@ -298,17 +294,17 @@ let POSTS: Post[] = [
 ];
 
 let COMMENTS: Record<string, Comment[]> = {
-    'p1': [
-        { id: 'c1', postId: 'p1', author: { name: 'Mike T', avatar: 'MT' }, text: 'I am interested! Sent you a DM.', createdAt: new Date(Date.now() - 3600000).toISOString() },
-        { id: 'c2', postId: 'p1', author: { name: 'Emily W', avatar: 'EW' }, text: 'Is this still open?', createdAt: new Date(Date.now() - 1800000).toISOString() }
-    ],
-    'p2': [
-        { id: 'c3', postId: 'p2', author: { name: 'Sarah Chen', avatar: 'SC' }, text: 'Great start! Check out PEP8 guidelines.', createdAt: new Date(Date.now() - 7200000).toISOString() }
-    ],
-    // Comment by "You"
-    'p1_c_me': [
-       { id: 'c4', postId: 'p1', author: { name: 'You', avatar: 'ME' }, text: 'I can join too if you need a third!', createdAt: new Date(Date.now() - 3000000).toISOString() } 
-    ]
+  'p1': [
+    { id: 'c1', postId: 'p1', author: { name: 'Mike T', avatar: 'MT' }, text: 'I am interested! Sent you a DM.', createdAt: new Date(Date.now() - 3600000).toISOString() },
+    { id: 'c2', postId: 'p1', author: { name: 'Emily W', avatar: 'EW' }, text: 'Is this still open?', createdAt: new Date(Date.now() - 1800000).toISOString() }
+  ],
+  'p2': [
+    { id: 'c3', postId: 'p2', author: { name: 'Sarah Chen', avatar: 'SC' }, text: 'Great start! Check out PEP8 guidelines.', createdAt: new Date(Date.now() - 7200000).toISOString() }
+  ],
+  // Comment by "You"
+  'p1_c_me': [
+    { id: 'c4', postId: 'p1', author: { name: 'You', avatar: 'ME' }, text: 'I can join too if you need a third!', createdAt: new Date(Date.now() - 3000000).toISOString() }
+  ]
 };
 
 // Add comment to store
@@ -317,62 +313,62 @@ COMMENTS['p1'].push({ id: 'c4', postId: 'p1', author: { name: 'You', avatar: 'ME
 
 
 const PEERS: InterviewPartner[] = [
-    {
-        id: 'p1',
-        name: 'David Kim',
-        email: 'david@example.com',
-        avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
-        role: 'Peer',
-        timezone: 'EST',
-        short_bio: 'Preparing for frontend interviews. Happy to trade mock sessions.',
-        skills: ['React', 'JavaScript', 'CSS'],
-        rating: 4.8,
-        availability_published: true,
-        next_available: 'Weekends',
-        experience_level: 'Intermediate'
-    },
-    {
-        id: 'p2',
-        name: 'Sarah Chen',
-        email: 'sarah@example.com',
-        avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
-        role: 'Peer',
-        timezone: 'PST',
-        short_bio: 'Ex-Google. Focusing on System Design and Backend architecture.',
-        skills: ['System Design', 'Python', 'Go'],
-        rating: 4.9,
-        availability_published: true,
-        next_available: 'Today, 4:00 PM',
-        experience_level: 'Senior'
-    },
-    {
-        id: 'p3',
-        name: 'Emily Wilson',
-        email: 'emily@example.com',
-        avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100',
-        role: 'Peer',
-        timezone: 'PST',
-        short_bio: 'Junior Dev looking to practice behavioral and easy LeetCode.',
-        skills: ['Algorithms', 'Java'],
-        rating: 4.5,
-        availability_published: false,
-        next_available: 'Evenings',
-        experience_level: 'Beginner'
-    },
-    {
-        id: 'p4',
-        name: 'Michael Torres',
-        email: 'mike@example.com',
-        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100',
-        role: 'Peer',
-        timezone: 'GMT',
-        short_bio: 'Fullstack dev. Can help with React and Node.js mock interviews.',
-        skills: ['React', 'Node.js', 'SQL'],
-        rating: 4.7,
-        availability_published: true,
-        next_available: 'Tomorrow',
-        experience_level: 'Intermediate'
-    }
+  {
+    id: 'p1',
+    name: 'David Kim',
+    email: 'david@example.com',
+    avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+    role: 'Peer',
+    timezone: 'EST',
+    short_bio: 'Preparing for frontend interviews. Happy to trade mock sessions.',
+    skills: ['React', 'JavaScript', 'CSS'],
+    rating: 4.8,
+    availability_published: true,
+    next_available: 'Weekends',
+    experience_level: 'Intermediate'
+  },
+  {
+    id: 'p2',
+    name: 'Sarah Chen',
+    email: 'sarah@example.com',
+    avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
+    role: 'Peer',
+    timezone: 'PST',
+    short_bio: 'Ex-Google. Focusing on System Design and Backend architecture.',
+    skills: ['System Design', 'Python', 'Go'],
+    rating: 4.9,
+    availability_published: true,
+    next_available: 'Today, 4:00 PM',
+    experience_level: 'Senior'
+  },
+  {
+    id: 'p3',
+    name: 'Emily Wilson',
+    email: 'emily@example.com',
+    avatar_url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100',
+    role: 'Peer',
+    timezone: 'PST',
+    short_bio: 'Junior Dev looking to practice behavioral and easy LeetCode.',
+    skills: ['Algorithms', 'Java'],
+    rating: 4.5,
+    availability_published: false,
+    next_available: 'Evenings',
+    experience_level: 'Beginner'
+  },
+  {
+    id: 'p4',
+    name: 'Michael Torres',
+    email: 'mike@example.com',
+    avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100',
+    role: 'Peer',
+    timezone: 'GMT',
+    short_bio: 'Fullstack dev. Can help with React and Node.js mock interviews.',
+    skills: ['React', 'Node.js', 'SQL'],
+    rating: 4.7,
+    availability_published: true,
+    next_available: 'Tomorrow',
+    experience_level: 'Intermediate'
+  }
 ];
 
 // --- Resource Engine Catalog ---
@@ -593,10 +589,10 @@ const CATALOG: CatalogData = {
         }
       ],
       "mockInterviewChecklist": [
-          "Technical: Explain bias vs variance.",
-          "Coding: Implement a basic ML algorithm (e.g. k-means) or data manipulation.",
-          "Scenario: How do you handle missing data?",
-          "Behavioral: Describe a challenging modeling problem you solved."
+        "Technical: Explain bias vs variance.",
+        "Coding: Implement a basic ML algorithm (e.g. k-means) or data manipulation.",
+        "Scenario: How do you handle missing data?",
+        "Behavioral: Describe a challenging modeling problem you solved."
       ]
     },
     {
@@ -743,10 +739,10 @@ const CATALOG: CatalogData = {
         }
       ],
       "mockInterviewChecklist": [
-          "Technical: SQL queries (joins, window functions).",
-          "Scenario: How would you investigate a drop in metrics?",
-          "Visualization: Critique a dashboard or chart.",
-          "Behavioral: Tell me about a time you had to explain data to a non-technical stakeholder."
+        "Technical: SQL queries (joins, window functions).",
+        "Scenario: How would you investigate a drop in metrics?",
+        "Visualization: Critique a dashboard or chart.",
+        "Behavioral: Tell me about a time you had to explain data to a non-technical stakeholder."
       ]
     },
     {
@@ -1997,45 +1993,148 @@ const CATALOG: CatalogData = {
 
 let USER_COURSE_PROGRESS: Record<string, UserCourseProgressState> = {};
 
+// --- Projects API ---
+
+export const getProjects = async (): Promise<Project[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) return [];
+
+  try {
+    const q = query(
+      collection(db, 'projects'),
+      where('members', 'array-contains', currentUser.uid)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    return [];
+  }
+};
+
+export const createProject = async (projectData: Partial<Project>): Promise<Project> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Must be logged in to create a project");
+
+  const newProject = {
+    name: projectData.name || 'Untitled Project',
+    description: projectData.description || '',
+    visibility: projectData.visibility || 'Private',
+    members: [currentUser.uid],
+    createdAt: new Date().toISOString(),
+    ...projectData,
+  };
+
+  const docRef = await addDoc(collection(db, 'projects'), newProject);
+  return { id: docRef.id, ...newProject } as Project;
+};
+
+export const updateProject = async (projectId: string, updates: Partial<Project>): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Must be logged in");
+
+  const ref = doc(db, 'projects', projectId);
+  await updateDoc(ref, updates);
+};
+
+export const deleteProject = async (projectId: string): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) throw new Error("Must be logged in");
+
+  const ref = doc(db, 'projects', projectId);
+  await deleteDoc(ref);
+};
+
+export const getProjectTasks = async (projectId: string): Promise<Column[]> => {
+  try {
+    const q = query(collection(db, `projects/${projectId}/columns`));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      return [];
+    }
+    return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Column)).sort((a, b) => {
+      const order = ['Backlog', 'In Progress', 'Review', 'Done'];
+      return order.indexOf(a.id) - order.indexOf(b.id);
+    });
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
+    return [];
+  }
+};
+
+export const saveProjectTasks = async (projectId: string, columns: Column[]): Promise<void> => {
+  // Overwrite the columns entirely for simplicity in MVP
+  try {
+    for (const col of columns) {
+      const ref = doc(db, `projects/${projectId}/columns`, col.id);
+      await setDoc(ref, col);
+    }
+  } catch (error) {
+    console.error("Failed to save tasks", error);
+  }
+};
+
 export const api = {
+
+  // --- Project API ---
+  getProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  getProjectTasks,
+  saveProjectTasks,
+
   // --- Profile API ---
   async getProfile(): Promise<UserProfile> {
-    await delay(300);
-    return { ...CURRENT_USER_PROFILE };
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    const docRef = doc(db, 'users', user.uid);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      const newProfile = { ...INITIAL_PROFILE, id: user.uid, email: user.email || '' };
+      await setDoc(docRef, newProfile);
+      return newProfile;
+    }
+    return docSnap.data() as UserProfile;
   },
 
   async updateProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
-    await delay(600);
-    
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+
     // Server-side validation simulation
     if (updates.first_name !== undefined && (updates.first_name.length < 2 || updates.first_name.length > 100)) {
-        throw new Error("First name must be between 2 and 100 characters.");
+      throw new Error("First name must be between 2 and 100 characters.");
     }
     if (updates.last_name !== undefined && (updates.last_name.length < 2 || updates.last_name.length > 100)) {
-        throw new Error("Last name must be between 2 and 100 characters.");
+      throw new Error("Last name must be between 2 and 100 characters.");
     }
     if (updates.bio && updates.bio.length > 250) {
-        throw new Error("Bio cannot exceed 250 characters.");
+      throw new Error("Bio cannot exceed 250 characters.");
     }
     if (updates.skills && (updates.skills.length < 1 || updates.skills.length > 10)) {
-        throw new Error("Please add between 1 and 10 skills.");
+      throw new Error("Please add between 1 and 10 skills.");
     }
     if (updates.availability) {
-        for (const slot of updates.availability) {
-            if (slot.start_time >= slot.end_time) {
-                throw new Error("Start time must be before end time.");
-            }
+      for (const slot of updates.availability) {
+        if (slot.start_time >= slot.end_time) {
+          throw new Error("Start time must be before end time.");
         }
+      }
     }
 
+    const docRef = doc(db, 'users', user.uid);
+    const docSnap = await getDoc(docRef);
+    let currentProfile = docSnap.exists() ? docSnap.data() as UserProfile : { ...INITIAL_PROFILE, id: user.uid, email: user.email || '' };
+
     // Merge updates
-    const updatedProfile = { ...CURRENT_USER_PROFILE, ...updates, updated_at: new Date().toISOString() };
-    
+    const updatedProfile = { ...currentProfile, ...updates, updated_at: new Date().toISOString() };
+
     // Recalculate completion
     updatedProfile.profile_completion_percentage = calculateProfileCompletion(updatedProfile);
-    
-    CURRENT_USER_PROFILE = updatedProfile;
-    return { ...CURRENT_USER_PROFILE };
+
+    await setDoc(docRef, updatedProfile, { merge: true });
+    return updatedProfile;
   },
 
   async uploadPhoto(file: File): Promise<{ photo_url: string }> {
@@ -2043,7 +2142,7 @@ export const api = {
     // Simulate upload
     if (file.size > 5 * 1024 * 1024) throw new Error("File size exceeds 5MB limit.");
     if (!['image/jpeg', 'image/png'].includes(file.type)) throw new Error("Invalid file type. Only JPG/PNG allowed.");
-    
+
     const mockUrl = URL.createObjectURL(file);
     CURRENT_USER_PROFILE.photo_url = mockUrl;
     CURRENT_USER_PROFILE.profile_completion_percentage = calculateProfileCompletion(CURRENT_USER_PROFILE);
@@ -2054,7 +2153,7 @@ export const api = {
     await delay(1000);
     if (file.size > 8 * 1024 * 1024) throw new Error("File size exceeds 8MB limit.");
     if (file.type !== 'application/pdf') throw new Error("Only PDF files are allowed.");
-    
+
     const mockUrl = URL.createObjectURL(file);
     CURRENT_USER_PROFILE.resume_url = mockUrl;
     CURRENT_USER_PROFILE.profile_completion_percentage = calculateProfileCompletion(CURRENT_USER_PROFILE);
@@ -2072,7 +2171,7 @@ export const api = {
     await delay(200);
     const p = CURRENT_USER_PROFILE;
     const missing: string[] = [];
-    
+
     if (!p.first_name || !p.last_name) missing.push("Full Name");
     if (!p.skills || p.skills.length === 0) missing.push("At least 1 Skill");
     if (!p.target_role) missing.push("Target Role");
@@ -2081,658 +2180,735 @@ export const api = {
     if (!p.availability || p.availability.length === 0) missing.push("At least 1 Availability Slot");
     if (!p.email_verified) missing.push("Email Verification");
     if (p.profile_completion_percentage < 60) missing.push("Profile Completion >= 60%");
-    
+
     return missing;
   },
-    // --- User & Profile ---
-    getUserProfile: async (userId: string): Promise<UserProfile> => {
-        await delay(300);
-        return CURRENT_USER_PROFILE;
-    },
+  // --- User & Profile ---
+  getUserProfile: async (userId: string): Promise<UserProfile> => {
+    await delay(300);
+    return CURRENT_USER_PROFILE;
+  },
 
-    // --- Mock Interviews ---
-    getPeers: async (searchQuery?: string): Promise<InterviewPartner[]> => {
-        await delay(300); // Faster for UI
-        if (!searchQuery) return PEERS;
-        const lowerQ = searchQuery.toLowerCase();
-        // Search by name or tag (skill)
-        return PEERS.filter(p => 
-            p.name.toLowerCase().includes(lowerQ) || 
-            p.skills.some(s => s.toLowerCase().includes(lowerQ))
-        );
-    },
+  // --- Mock Interviews ---
+  getPeers: async (searchQuery?: string): Promise<InterviewPartner[]> => {
+    await delay(300); // Faster for UI
+    if (!searchQuery) return PEERS;
+    const lowerQ = searchQuery.toLowerCase();
+    // Search by name or tag (skill)
+    return PEERS.filter(p =>
+      p.name.toLowerCase().includes(lowerQ) ||
+      p.skills.some(s => s.toLowerCase().includes(lowerQ))
+    );
+  },
 
-    getSchedule: async (): Promise<{ pending: MockSession[], confirmed: MockSession[], completed: MockSession[] }> => {
-        await delay(400);
-        const sorted = [...SESSIONS].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        return {
-            pending: sorted.filter(s => s.status === 'pending'),
-            confirmed: sorted.filter(s => s.status === 'confirmed'),
-            completed: sorted.filter(s => s.status === 'completed' || s.status === 'cancelled')
-        };
-    },
+  getSchedule: async (): Promise<{ pending: MockSession[], confirmed: MockSession[], completed: MockSession[] }> => {
+    const user = auth.currentUser;
+    if (!user) return { pending: [], confirmed: [], completed: [] };
 
-    inviteUser: async (payload: { invitee_id: string, proposed_times: string[], meeting_link: string, message: string }) => {
-        await delay(800);
-        const partner = PEERS.find(p => p.id === payload.invitee_id) || PEERS[0];
-        const newSession: MockSession = {
-            id: `s${Date.now()}`,
-            inviter_id: 'me',
-            invitee_id: payload.invitee_id,
-            partner_name: partner.name,
-            partner_avatar: partner.avatar_url,
-            partner_role: 'Peer',
-            proposed_times: payload.proposed_times.join(', '),
-            meeting_link: payload.meeting_link,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            skill_tags: partner.skills
-        };
-        SESSIONS.unshift(newSession);
-        return { success: true, invite_id: newSession.id };
-    },
+    const q1 = query(collection(db, 'sessions'), where('inviter_id', '==', user.uid));
+    const q2 = query(collection(db, 'sessions'), where('invitee_id', '==', user.uid));
 
-    cancelSession: async (sessionId: string) => {
-        await delay(400);
-        const session = SESSIONS.find(s => s.id === sessionId);
-        if (session) {
-            session.status = 'cancelled';
-        }
-        return { success: true };
-    },
+    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+    const allSessions = new Map<string, MockSession>();
 
-    updateSessionNotes: async (sessionId: string, notes: string) => {
-        await delay(400);
-        const session = SESSIONS.find(s => s.id === sessionId);
-        if (session) {
-            session.notes_private = notes;
-        }
-        return { success: true };
-    },
+    snap1.forEach(d => allSessions.set(d.id, { id: d.id, ...d.data() } as MockSession));
+    snap2.forEach(d => allSessions.set(d.id, { id: d.id, ...d.data() } as MockSession));
 
-    // --- Feedback ---
-    submitFeedback: async (payload: Omit<Feedback, 'id' | 'created_at'>) => {
-        await delay(600);
-        
-        // Check if editing existing feedback
-        const existingIndex = FEEDBACKS.findIndex(f => f.session_id === payload.session_id && f.reviewer_id === payload.reviewer_id);
-        
-        if (existingIndex >= 0) {
-            // Update existing
-            FEEDBACKS[existingIndex] = {
-                ...FEEDBACKS[existingIndex],
-                ...payload,
-                updated_at: new Date().toISOString()
-            };
-        } else {
-            // Create new
-            const newFeedback: Feedback = {
-                id: `fb_${Date.now()}`,
-                created_at: new Date().toISOString(),
-                ...payload
-            };
-            FEEDBACKS.push(newFeedback);
-        }
-        
-        const session = SESSIONS.find(s => s.id === payload.session_id);
-        if (session) {
-            session.feedback_status = 'submitted';
-            if (session.status === 'confirmed') {
-                session.status = 'completed';
-                session.completed_at = new Date().toISOString();
-            }
-        }
-        return { success: true };
-    },
+    const sorted = Array.from(allSessions.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    getFeedbackForSession: async (sessionId: string): Promise<Feedback | null> => {
-        await delay(300);
-        return FEEDBACKS.find(f => f.session_id === sessionId && f.reviewer_id === 'me') || null;
-    },
+    return {
+      pending: sorted.filter(s => s.status === 'pending'),
+      confirmed: sorted.filter(s => s.status === 'confirmed'),
+      completed: sorted.filter(s => ['completed', 'cancelled'].includes(s.status))
+    };
+  },
 
-    getFeedbacksForUser: async (userId: string): Promise<Feedback[]> => {
-        await delay(300);
-        // In a real app, this would filter by reviewee_id === userId
-        // For mock, we return all feedbacks where reviewee_id is 'me' or userId
-        return FEEDBACKS.filter(f => f.reviewee_id === userId || (userId === 'me' && f.reviewee_id === 'me'));
-    },
+  inviteUser: async (payload: { invitee_id: string, proposed_times: string[], meeting_link: string, message: string }) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
 
-    completeSession: async (sessionId: string): Promise<boolean> => {
-        await delay(400);
-        const session = SESSIONS.find(s => s.id === sessionId);
-        if (session) {
-            session.status = 'completed';
-            session.completed_at = new Date().toISOString();
-            return true;
-        }
-        return false;
-    },
+    // In reality, you'd fetch the partner profile from Firestore. Using fallback values for now.
+    const newSessionData = {
+      inviter_id: user.uid,
+      invitee_id: payload.invitee_id,
+      partner_name: "Peer Student",
+      partner_avatar: "",
+      partner_role: 'Peer',
+      proposed_times: payload.proposed_times.join(', '),
+      meeting_link: payload.meeting_link,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      skill_tags: [] // would be partner's skills
+    };
 
-    getMetrics: async (userId: string): Promise<InterviewMetrics> => {
-        await delay(400);
-        
-        // Get feedbacks for this user
-        // For mock demo, let's ensure we have some dummy feedbacks if empty to show metrics
-        let userFeedbacks = FEEDBACKS.filter(f => f.reviewee_id === userId || (userId === 'me' && f.reviewee_id === 'me'));
-        
-        // If no feedbacks, return empty state
-        if (userFeedbacks.length === 0 && userId === 'me') {
-             // Return mock metrics for demo purposes if no real feedback yet
-             // OR return 0s if strictly following "no feedback" rule.
-             // The prompt says: "If user has no feedback, show dashes / “—”."
-             // But the initial mock had data. Let's keep initial mock data if FEEDBACKS is empty, 
-             // but if FEEDBACKS has entries, calculate from them.
-             if (FEEDBACKS.length === 0) {
-                 return {
-                    practicesCount: 12,
-                    avgScore: 82,
-                    improvementTrend: 5,
-                    readinessScore: 78,
-                    confidenceLabel: "Based on 12 sessions"
-                };
-             }
-        }
+    const docRef = await addDoc(collection(db, 'sessions'), newSessionData);
+    return { success: true, invite_id: docRef.id };
+  },
 
-        if (userFeedbacks.length < 2) {
-             return {
-                practicesCount: userFeedbacks.length,
-                avgScore: 0,
-                improvementTrend: 0,
-                readinessScore: 0,
-                confidenceLabel: "Low confidence (< 2 sessions)"
-            };
-        }
+  cancelSession: async (sessionId: string) => {
+    const docRef = doc(db, 'sessions', sessionId);
+    await updateDoc(docRef, { status: 'cancelled' });
+    return { success: true };
+  },
 
-        // Sort by date desc
-        userFeedbacks.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        
-        // Take last N (default 20)
-        const N = 20;
-        const recentFeedbacks = userFeedbacks.slice(0, N);
-        
-        // Calculate Weighted Average with Decay
-        // weight = 1 * 0.95^index
-        let totalWeightedScore = 0;
-        let totalWeight = 0;
-        
-        recentFeedbacks.forEach((fb, index) => {
-            const decayFactor = 0.95;
-            const weight = 1 * Math.pow(decayFactor, index);
-            
-            // Calculate average score for this feedback
-            const scores = [fb.scores.problem_solving, fb.scores.communication];
-            if (fb.scores.code_quality) scores.push(fb.scores.code_quality);
-            if (fb.scores.technical_depth) scores.push(fb.scores.technical_depth);
-            
-            const avgFeedbackScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-            
-            totalWeightedScore += avgFeedbackScore * weight;
-            totalWeight += weight;
-        });
-        
-        const aggregatedScore = totalWeight > 0 ? (totalWeightedScore / totalWeight) : 0;
-        
-        // Normalize to 0-100 (score is 1-5)
-        // 1 -> 0, 5 -> 100
-        // (score - 1) / 4 * 100 ? Or just score / 5 * 100?
-        // Prompt says: "3/5 -> 60%". So score / 5 * 100.
-        const readinessScore = Math.round((aggregatedScore / 5) * 100);
-        
-        return {
-            practicesCount: userFeedbacks.length,
-            avgScore: readinessScore,
-            improvementTrend: 5, // Mock trend for now
-            readinessScore: readinessScore,
-            confidenceLabel: `Based on ${userFeedbacks.length} sessions (last 12 months)`
-        };
-    },
+  updateSessionNotes: async (sessionId: string, notes: string) => {
+    const docRef = doc(db, 'sessions', sessionId);
+    await updateDoc(docRef, { notes_private: notes });
+    return { success: true };
+  },
 
-    exportFeedbacksCSV: async (): Promise<string> => {
-        await delay(500);
-        // Generate CSV string
-        const headers = ['Session ID', 'Date', 'Partner', 'Problem Solving', 'Communication', 'Code Quality', 'Technical Depth', 'Notes', 'Tags'];
-        const rows = FEEDBACKS.map(f => {
-            const session = SESSIONS.find(s => s.id === f.session_id);
-            return [
-                f.session_id,
-                f.created_at,
-                session?.partner_name || 'Unknown',
-                f.scores.problem_solving,
-                f.scores.communication,
-                f.scores.code_quality || '-',
-                f.scores.technical_depth || '-',
-                `"${f.notes.replace(/"/g, '""')}"`,
-                `"${f.tags.join(', ')}"`
-            ].join(',');
-        });
-        return [headers.join(','), ...rows].join('\n');
-    },
+  // --- Feedback ---
+  submitFeedback: async (payload: Omit<Feedback, 'id' | 'created_at'>) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
 
-    generatePracticePlan: async (): Promise<AIPlanTask[]> => {
-        await delay(600);
-        return [
-            { title: "Review SQL JOIN patterns", expected_minutes: 30, steps: ["Read notes", "Solve 3 exercises"], goal: "Improve joins" },
-            { title: "Practice 3 medium-level SQL problems", expected_minutes: 45, steps: ["Select 3 random problems"], goal: "Build speed" }
-        ];
-    },
+    const feedbackData = {
+      ...payload,
+      reviewer_id: user.uid,
+      created_at: new Date().toISOString()
+    };
 
-    // --- Groups API ---
-    getGroups: async (): Promise<Group[]> => {
-        await delay(400);
-        return GROUPS;
-    },
+    await addDoc(collection(db, 'feedbacks'), feedbackData);
 
-    getMyGroups: async (): Promise<Group[]> => {
-        await delay(300);
-        // Return groups where I am owner or member
-        return GROUPS.filter(g => g.ownerId === 'me' || g.members.includes('You'));
-    },
-
-    getGroupById: async (groupId: string): Promise<Group | undefined> => {
-        await delay(300);
-        return GROUPS.find(g => g.id === groupId);
-    },
-
-    createGroup: async (group: Omit<Group, 'id' | 'ownerId' | 'members' | 'memberCount' | 'createdAt'>): Promise<Group> => {
-        await delay(600);
-        const newGroup: Group = {
-            id: `g_${Date.now()}`,
-            ...group,
-            ownerId: 'me',
-            members: ['You'], // Auto-join creator
-            memberCount: 1,
-            createdAt: new Date().toISOString()
-        };
-        GROUPS.push(newGroup);
-        return newGroup;
-    },
-
-    updateGroup: async (groupId: string, updates: Partial<Group>): Promise<Group> => {
-        await delay(500);
-        const index = GROUPS.findIndex(g => g.id === groupId);
-        if (index === -1) throw new Error("Group not found");
-        
-        GROUPS[index] = { ...GROUPS[index], ...updates };
-        return GROUPS[index];
-    },
-
-    deleteGroup: async (groupId: string): Promise<boolean> => {
-        await delay(500);
-        GROUPS = GROUPS.filter(g => g.id !== groupId);
-        return true;
-    },
-
-    getGroupPosts: async (groupId: string): Promise<Post[]> => {
-        await delay(400);
-        return POSTS.filter(p => p.groupId === groupId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    },
-
-    inviteToGroup: async (groupId: string, emails: string[]): Promise<boolean> => {
-        await delay(500);
-        // Mock invitation logic
-        return true;
-    },
-
-    // --- Community Feed API ---
-
-    getPosts: async (page: number = 1): Promise<Post[]> => {
-        await delay(400);
-        // Exclude group-specific posts from main feed for now, or keep them if public
-        // For MVP, Main feed = Global posts (no groupId)
-        return [...POSTS].filter(p => !p.groupId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    },
-
-    createPost: async (content: string, tags: string[], groupId?: string): Promise<Post> => {
-        await delay(500);
-        const newPost: Post = {
-            id: `p_${Date.now()}`,
-            author: { name: 'You', avatar: 'ME', level: 'Beginner', matchPercentage: 100 },
-            content,
-            tags,
-            timestamp: 'Just now',
-            createdAt: new Date().toISOString(),
-            likes: 0,
-            likedByMe: false,
-            comments: 0,
-            type: 'note',
-            groupId
-        };
-        POSTS.unshift(newPost); // Add to local store
-        return newPost;
-    },
-
-    updatePost: async (postId: string, content: string): Promise<Post> => {
-        await delay(300);
-        const post = POSTS.find(p => p.id === postId);
-        if (!post) throw new Error("Post not found");
-        post.content = content;
-        post.updatedAt = new Date().toISOString();
-        return post;
-    },
-
-    deletePost: async (postId: string): Promise<boolean> => {
-        await delay(300);
-        POSTS = POSTS.filter(p => p.id !== postId);
-        return true;
-    },
-
-    toggleLike: async (postId: string): Promise<{ likes: number, likedByMe: boolean }> => {
-        await delay(200);
-        const post = POSTS.find(p => p.id === postId);
-        if (post) {
-            if (post.likedByMe) {
-                post.likes = Math.max(0, post.likes - 1);
-                post.likedByMe = false;
-            } else {
-                post.likes += 1;
-                post.likedByMe = true;
-            }
-            return { likes: post.likes, likedByMe: post.likedByMe };
-        }
-        throw new Error("Post not found");
-    },
-
-    getComments: async (postId: string): Promise<Comment[]> => {
-        await delay(300);
-        const postComments = COMMENTS[postId] || [];
-        return postComments.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    },
-
-    createComment: async (postId: string, text: string): Promise<Comment> => {
-        await delay(300);
-        const newComment: Comment = {
-            id: `c_${Date.now()}`,
-            postId,
-            author: { name: 'You', avatar: 'ME' },
-            text,
-            createdAt: new Date().toISOString()
-        };
-        
-        if (!COMMENTS[postId]) COMMENTS[postId] = [];
-        COMMENTS[postId].push(newComment);
-        
-        const post = POSTS.find(p => p.id === postId);
-        if (post) post.comments += 1;
-
-        return newComment;
-    },
-
-    updateComment: async (postId: string, commentId: string, text: string): Promise<Comment> => {
-        await delay(300);
-        // Find comment in all lists (inefficient mock)
-        for (const pid in COMMENTS) {
-            const list = COMMENTS[pid];
-            const comment = list.find(c => c.id === commentId);
-            if (comment) {
-                comment.text = text;
-                comment.updatedAt = new Date().toISOString();
-                return comment;
-            }
-        }
-        throw new Error("Comment not found");
-    },
-
-    deleteComment: async (postId: string, commentId: string): Promise<boolean> => {
-        await delay(300);
-        if (COMMENTS[postId]) {
-            COMMENTS[postId] = COMMENTS[postId].filter(c => c.id !== commentId);
-            const post = POSTS.find(p => p.id === postId);
-            if (post) post.comments = Math.max(0, post.comments - 1);
-        }
-        return true;
-    },
-
-    // --- Activity Feed API ---
-    getMyActivity: async (filter: 'all' | 'groups' | 'posts' | 'comments' = 'all'): Promise<ActivityItem[]> => {
-        await delay(500);
-        const activity: ActivityItem[] = [];
-
-        // Groups
-        if (filter === 'all' || filter === 'groups') {
-            const myGroups = GROUPS.filter(g => g.ownerId === 'me' || g.members.includes('You'));
-            myGroups.forEach(g => {
-                activity.push({
-                    id: g.id,
-                    type: 'group',
-                    title: g.name,
-                    content: g.description,
-                    createdAt: g.createdAt,
-                    metadata: {
-                        members: g.memberCount,
-                        role: g.ownerId === 'me' ? 'Owner' : 'Member'
-                    }
-                });
-            });
-        }
-
-        // Posts
-        if (filter === 'all' || filter === 'posts') {
-            const myPosts = POSTS.filter(p => p.author.name === 'You');
-            myPosts.forEach(p => {
-                activity.push({
-                    id: p.id,
-                    type: 'post',
-                    content: p.content,
-                    createdAt: p.createdAt,
-                    metadata: {
-                        likes: p.likes,
-                        comments: p.comments,
-                        tags: p.tags
-                    }
-                });
-            });
-        }
-
-        // Comments
-        if (filter === 'all' || filter === 'comments') {
-            const myComments: Comment[] = [];
-            Object.values(COMMENTS).forEach(list => {
-                list.forEach(c => {
-                    if (c.author.name === 'You') myComments.push(c);
-                });
-            });
-            myComments.forEach(c => {
-                const parentPost = POSTS.find(p => p.id === c.postId);
-                activity.push({
-                    id: c.id,
-                    type: 'comment',
-                    content: c.text,
-                    createdAt: c.createdAt,
-                    metadata: {
-                        postId: c.postId,
-                        postTitle: parentPost?.content.substring(0, 30) + (parentPost?.content && parentPost.content.length > 30 ? '...' : '')
-                    }
-                });
-            });
-        }
-
-        return activity.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    },
-
-    getMyStats: async (): Promise<{ groups: number, posts: number, comments: number }> => {
-        await delay(300);
-        const groups = GROUPS.filter(g => g.ownerId === 'me' || g.members.includes('You')).length;
-        const posts = POSTS.filter(p => p.author.name === 'You').length;
-        let comments = 0;
-        Object.values(COMMENTS).forEach(list => {
-            comments += list.filter(c => c.author.name === 'You').length;
-        });
-        return { groups, posts, comments };
-    },
-
-    // --- Chat History API ---
-    getConversations: async (): Promise<Conversation[]> => {
-        await delay(400);
-        return [
-            { 
-                id: 'c1', 
-                recipientName: 'Sarah Chen', 
-                recipientAvatar: 'SC', 
-                lastMessage: 'Sounds good! See you then.', 
-                timestamp: '2h ago', 
-                unreadCount: 0 
-            },
-            { 
-                id: 'c2', 
-                recipientName: 'David Kim', 
-                recipientAvatar: 'DK', 
-                lastMessage: 'Can you help me with this Python script?', 
-                timestamp: '1d ago', 
-                unreadCount: 2 
-            }
-        ];
-    },
-
-    getMessages: async (conversationId: string): Promise<ChatMessage[]> => {
-        await delay(300);
-        // Mocking chat messages for any conversation ID
-        return CHAT_MESSAGES;
-    },
-
-    sendMessage: async (conversationId: string, text: string): Promise<ChatMessage> => {
-        await delay(200);
-        return {
-            id: `m_${Date.now()}`,
-            sender: 'me',
-            text,
-            timestamp: 'Just now',
-            read: false
-        };
-    },
-
-    // --- Roadmap API ---
-    getRoadmap: async (): Promise<RoadmapCategory[]> => {
-        await delay(300);
-        return ROADMAP_CATEGORIES;
-    },
-
-    getRoadmapProgress: async (): Promise<UserRoadmapProgress> => {
-        await delay(200);
-        return USER_ROADMAP_PROGRESS;
-    },
-
-    updateModuleStatus: async (moduleId: number, status: ModuleStatus): Promise<UserRoadmapProgress> => {
-        await delay(300);
-        
-        // Update status
-        USER_ROADMAP_PROGRESS.moduleStatuses[moduleId] = status;
-        USER_ROADMAP_PROGRESS.lastUpdated = new Date().toISOString();
-
-        if (status === 'completed') {
-            if (!USER_ROADMAP_PROGRESS.completedModuleIds.includes(moduleId)) {
-                USER_ROADMAP_PROGRESS.completedModuleIds.push(moduleId);
-            }
-
-            // Logic to unlock next module in the same category
-            const category = ROADMAP_CATEGORIES.find(c => c.modules.some(m => m.id === moduleId));
-            if (category) {
-                const currentIndex = category.modules.findIndex(m => m.id === moduleId);
-                if (currentIndex !== -1 && currentIndex < category.modules.length - 1) {
-                    const nextModule = category.modules[currentIndex + 1];
-                    // Only unlock if it was locked
-                    if (USER_ROADMAP_PROGRESS.moduleStatuses[nextModule.id] === 'locked') {
-                        USER_ROADMAP_PROGRESS.moduleStatuses[nextModule.id] = 'in-progress';
-                    }
-                }
-            }
-
-            // Logic to unlock Category 4 (Portfolio) if Cat 1-3 are done
-            const isCat1Done = ROADMAP_CATEGORIES[0].modules.every(m => USER_ROADMAP_PROGRESS.completedModuleIds.includes(m.id));
-            const isCat2Done = ROADMAP_CATEGORIES[1].modules.every(m => USER_ROADMAP_PROGRESS.completedModuleIds.includes(m.id));
-            const isCat3Done = ROADMAP_CATEGORIES[2].modules.every(m => USER_ROADMAP_PROGRESS.completedModuleIds.includes(m.id));
-
-            if (isCat1Done && isCat2Done && isCat3Done) {
-                // Unlock first module of Cat 4
-                const cat4FirstModule = ROADMAP_CATEGORIES[3].modules[0];
-                if (USER_ROADMAP_PROGRESS.moduleStatuses[cat4FirstModule.id] === 'locked') {
-                    USER_ROADMAP_PROGRESS.moduleStatuses[cat4FirstModule.id] = 'in-progress';
-                }
-            }
-        }
-
-        // Persist
-        localStorage.setItem('roadmap_progress', JSON.stringify(USER_ROADMAP_PROGRESS));
-        
-        return { ...USER_ROADMAP_PROGRESS };
-    },
-
-    logRoadmapEvent: async (type: 'resource_click' | 'test_click' | 'module_complete', moduleId: number | string): Promise<void> => {
-        // Fire and forget
-        const event: RoadmapEvent = {
-            id: `evt_${Date.now()}`,
-            userId: 'me',
-            type,
-            moduleId,
-            timestamp: new Date().toISOString()
-        };
-        ROADMAP_EVENTS.push(event);
-        console.log('[Analytics]', event);
-    },
-
-    // --- Resource Engine ---
-    getCatalog: async (): Promise<CatalogData> => {
-        await delay(200);
-        return CATALOG;
-    },
-
-    getCourse: async (slug: string): Promise<CourseData | undefined> => {
-        await delay(300);
-        return CATALOG.courses.find(c => c.slug === slug);
-    },
-
-    getCourseProgress: async (slug: string): Promise<UserCourseProgressState> => {
-        await delay(200);
-        if (!USER_COURSE_PROGRESS[slug]) {
-             // Initialize with default state
-             // Module 1 unlocked by default
-             USER_COURSE_PROGRESS[slug] = {
-                modules: {
-                    1: { status: 'in_progress' } // Module 1 is unlocked/in_progress by default
-                },
-                projects: {}
-             };
-        }
-        return USER_COURSE_PROGRESS[slug];
-    },
-
-    markModuleComplete: async (slug: string, moduleOrder: number): Promise<UserCourseProgressState> => {
-        await delay(300);
-        const progress = USER_COURSE_PROGRESS[slug] || { modules: {}, projects: {} };
-        
-        // Mark current module as completed
-        progress.modules[moduleOrder] = { status: 'completed' };
-
-        // Unlock next module
-        const course = CATALOG.courses.find(c => c.slug === slug);
-        if (course && course.modules) {
-            const nextModule = course.modules.find(m => m.order === moduleOrder + 1);
-            if (nextModule) {
-                // If next module is not already completed or in_progress
-                if (!progress.modules[nextModule.order]) {
-                    progress.modules[nextModule.order] = { status: 'in_progress' };
-                }
-            }
-        }
-        
-        USER_COURSE_PROGRESS[slug] = progress;
-        return { ...progress };
-    },
-
-    markProjectComplete: async (slug: string, projectTitle: string): Promise<UserCourseProgressState> => {
-        await delay(300);
-        const progress = USER_COURSE_PROGRESS[slug] || { modules: {}, projects: {} };
-        progress.projects[projectTitle] = { isCompleted: true };
-        USER_COURSE_PROGRESS[slug] = progress;
-        return { ...progress };
-    },
-
-    searchResources: async (query: string): Promise<CourseData[]> => {
-        await delay(300);
-        const q = query.toLowerCase();
-        return CATALOG.courses.filter(c => 
-            c.title.toLowerCase().includes(q) || 
-            c.shortDesc.toLowerCase().includes(q)
-        );
+    const sessionRef = doc(db, 'sessions', payload.session_id);
+    const sessionSnap = await getDoc(sessionRef);
+    if (sessionSnap.exists()) {
+      const updates: any = { feedback_status: 'submitted' };
+      if (sessionSnap.data().status === 'confirmed') {
+        updates.status = 'completed';
+        updates.completed_at = new Date().toISOString();
+      }
+      await updateDoc(sessionRef, updates);
     }
+    return { success: true };
+  },
+
+  getFeedbackForSession: async (sessionId: string): Promise<Feedback | null> => {
+    const user = auth.currentUser;
+    if (!user) return null;
+    const q = query(collection(db, 'feedbacks'), where('session_id', '==', sessionId), where('reviewer_id', '==', user.uid));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as Feedback;
+  },
+
+  getFeedbacksForUser: async (userId: string): Promise<Feedback[]> => {
+    const targetId = userId === 'me' ? auth.currentUser?.uid : userId;
+    if (!targetId) return [];
+
+    const q = query(collection(db, 'feedbacks'), where('reviewee_id', '==', targetId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Feedback));
+  },
+
+  completeSession: async (sessionId: string): Promise<boolean> => {
+    const sessionRef = doc(db, 'sessions', sessionId);
+    await updateDoc(sessionRef, {
+      status: 'completed',
+      completed_at: new Date().toISOString()
+    });
+    return true;
+  },
+
+  getMetrics: async (userId: string): Promise<InterviewMetrics> => {
+    const targetId = userId === 'me' ? auth.currentUser?.uid : userId;
+    if (!targetId) {
+      return { practicesCount: 0, avgScore: 0, improvementTrend: 0, readinessScore: 0, confidenceLabel: "Not authenticated" };
+    }
+
+    const q = query(collection(db, 'feedbacks'), where('reviewee_id', '==', targetId));
+    const snap = await getDocs(q);
+    const userFeedbacks = snap.docs.map(d => d.data() as Feedback);
+
+    if (userFeedbacks.length === 0) {
+      return { practicesCount: 0, avgScore: 0, improvementTrend: 0, readinessScore: 0, confidenceLabel: "No feedbacks yet" };
+    }
+
+    if (userFeedbacks.length < 2) {
+      return { practicesCount: userFeedbacks.length, avgScore: 0, improvementTrend: 0, readinessScore: 0, confidenceLabel: "Low confidence (< 2 sessions)" };
+    }
+
+    userFeedbacks.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const recentFeedbacks = userFeedbacks.slice(0, 20);
+
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+
+    recentFeedbacks.forEach((fb, index) => {
+      const weight = 1 * Math.pow(0.95, index);
+      const scores = [fb.scores.problem_solving, fb.scores.communication];
+      if (fb.scores.code_quality) scores.push(fb.scores.code_quality);
+      if (fb.scores.technical_depth) scores.push(fb.scores.technical_depth);
+
+      const avgFeedbackScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+      totalWeightedScore += avgFeedbackScore * weight;
+      totalWeight += weight;
+    });
+
+    const aggregatedScore = totalWeight > 0 ? (totalWeightedScore / totalWeight) : 0;
+    const readinessScore = Math.round((aggregatedScore / 5) * 100);
+
+    return {
+      practicesCount: userFeedbacks.length,
+      avgScore: readinessScore,
+      improvementTrend: 5, // Mock trend
+      readinessScore: readinessScore,
+      confidenceLabel: `Based on ${userFeedbacks.length} sessions (last 12 months)`
+    };
+  },
+
+  exportFeedbacksCSV: async (): Promise<string> => {
+    await delay(500);
+    // Generate CSV string
+    const headers = ['Session ID', 'Date', 'Partner', 'Problem Solving', 'Communication', 'Code Quality', 'Technical Depth', 'Notes', 'Tags'];
+    const rows = FEEDBACKS.map(f => {
+      const session = SESSIONS.find(s => s.id === f.session_id);
+      return [
+        f.session_id,
+        f.created_at,
+        session?.partner_name || 'Unknown',
+        f.scores.problem_solving,
+        f.scores.communication,
+        f.scores.code_quality || '-',
+        f.scores.technical_depth || '-',
+        `"${f.notes.replace(/"/g, '""')}"`,
+        `"${f.tags.join(', ')}"`
+      ].join(',');
+    });
+    return [headers.join(','), ...rows].join('\n');
+  },
+
+  generatePracticePlan: async (): Promise<AIPlanTask[]> => {
+    await delay(600);
+    return [
+      { title: "Review SQL JOIN patterns", expected_minutes: 30, steps: ["Read notes", "Solve 3 exercises"], goal: "Improve joins" },
+      { title: "Practice 3 medium-level SQL problems", expected_minutes: 45, steps: ["Select 3 random problems"], goal: "Build speed" }
+    ];
+  },
+
+  // --- Groups API ---
+  getGroups: async (): Promise<Group[]> => {
+    const snap = await getDocs(collection(db, 'groups'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as Group));
+  },
+
+  getMyGroups: async (): Promise<Group[]> => {
+    const user = auth.currentUser;
+    if (!user) return [];
+    const userName = user.displayName || 'User';
+
+    const snap = await getDocs(collection(db, 'groups'));
+    const allGroups = snap.docs.map(d => ({ ...d.data(), id: d.id } as Group));
+    return allGroups.filter(g => g.ownerId === user.uid || g.ownerId === 'me' || g.members.includes(userName) || g.members.includes('You'));
+  },
+
+  getGroupById: async (groupId: string): Promise<Group | undefined> => {
+    const docRef = doc(db, 'groups', groupId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return GROUPS.find(g => g.id === groupId); // Fallback to mock for legacy
+    return { ...snap.data(), id: snap.id } as Group;
+  },
+
+  createGroup: async (group: Omit<Group, 'id' | 'ownerId' | 'members' | 'memberCount' | 'createdAt'>): Promise<Group> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    const userName = user.displayName || 'User';
+
+    const newGroup = {
+      ...group,
+      ownerId: user.uid,
+      members: [userName],
+      memberCount: 1,
+      createdAt: new Date().toISOString()
+    };
+    const docRef = await addDoc(collection(db, 'groups'), newGroup);
+    return { ...newGroup, id: docRef.id } as Group;
+  },
+
+  updateGroup: async (groupId: string, updates: Partial<Group>): Promise<Group> => {
+    const docRef = doc(db, 'groups', groupId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      await updateDoc(docRef, updates);
+      return { ...snap.data(), ...updates, id: snap.id } as Group;
+    }
+    // Fallback to mock edit if legacy mock group
+    const index = GROUPS.findIndex(g => g.id === groupId);
+    if (index !== -1) {
+      GROUPS[index] = { ...GROUPS[index], ...updates };
+      return GROUPS[index];
+    }
+    throw new Error("Group not found");
+  },
+
+  deleteGroup: async (groupId: string): Promise<boolean> => {
+    const docRef = doc(db, 'groups', groupId);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      await deleteDoc(docRef);
+      return true;
+    }
+    // Fallback to mock delete if legacy
+    GROUPS = GROUPS.filter(g => g.id !== groupId);
+    return true;
+  },
+
+  getGroupPosts: async (groupId: string): Promise<Post[]> => {
+    const q = query(collection(db, 'posts'), where('groupId', '==', groupId));
+    const snapshot = await getDocs(q);
+    const posts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+    // Include mock posts for legacy mock groups
+    const mockPosts = POSTS.filter(p => p.groupId === groupId);
+    return [...posts, ...mockPosts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  inviteToGroup: async (groupId: string, emails: string[]): Promise<boolean> => {
+    try {
+      const docRef = doc(db, 'groups', groupId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const group = snap.data();
+        const currentMembers = group.members || [];
+        const newMembers = Array.from(new Set([...currentMembers, ...emails]));
+        await updateDoc(docRef, { members: newMembers, memberCount: newMembers.length });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  },
+
+  inviteToProject: async (projectId: string, emails: string[]): Promise<boolean> => {
+    try {
+      const docRef = doc(db, 'projects', projectId);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const project = snap.data();
+        const currentMembers = project.members || [];
+        const newMembers = emails.map(email => ({
+          user_id: email.toLowerCase(),
+          name: email.split('@')[0],
+          role: 'Member',
+          avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(email)}&background=random`
+        }));
+        const updatedMembers = [...currentMembers, ...newMembers];
+        await updateDoc(docRef, { members: updatedMembers });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  },
+
+
+  // --- Community Feed API ---
+
+  getPosts: async (page: number = 1): Promise<Post[]> => {
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+  },
+
+  createPost: async (content: string, tags: string[], groupId?: string): Promise<Post> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    const newPostData = {
+      authorId: user.uid,
+      author: { name: user.displayName || 'User', avatar: user.displayName?.charAt(0) || 'U', level: 'Beginner', matchPercentage: 100 },
+      content,
+      tags,
+      timestamp: 'Just now',
+      createdAt: new Date().toISOString(),
+      likes: 0,
+      comments: 0,
+      type: 'note',
+      groupId: groupId || null
+    };
+    const docRef = await addDoc(collection(db, 'posts'), newPostData);
+    return { id: docRef.id, ...newPostData, likedByMe: false } as Post;
+  },
+
+  updatePost: async (postId: string, content: string): Promise<Post> => {
+    const docRef = doc(db, 'posts', postId);
+    await updateDoc(docRef, { content, updatedAt: new Date().toISOString() });
+    const snap = await getDoc(docRef);
+    return { id: snap.id, ...snap.data() } as Post;
+  },
+
+  deletePost: async (postId: string): Promise<boolean> => {
+    await deleteDoc(doc(db, 'posts', postId));
+    return true;
+  },
+
+  toggleLike: async (postId: string): Promise<{ likes: number, likedByMe: boolean }> => {
+    const docRef = doc(db, 'posts', postId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error("Post not found");
+    const data = snap.data();
+    const newLikes = (data.likes || 0) + 1; // Simplified increment
+    await updateDoc(docRef, { likes: newLikes });
+    return { likes: newLikes, likedByMe: true };
+  },
+
+  getComments: async (postId: string): Promise<Comment[]> => {
+    const q = query(collection(db, 'posts', postId, 'comments'), orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Comment));
+  },
+
+  createComment: async (postId: string, text: string): Promise<Comment> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+    const newCommentData = {
+      postId,
+      authorId: user.uid,
+      author: { name: user.displayName || 'User', avatar: user.displayName?.charAt(0) || 'U' },
+      text,
+      createdAt: new Date().toISOString()
+    };
+    const docRef = await addDoc(collection(db, 'posts', postId, 'comments'), newCommentData);
+
+    // update comment count on post
+    const postRef = doc(db, 'posts', postId);
+    const postSnap = await getDoc(postRef);
+    if (postSnap.exists()) {
+      await updateDoc(postRef, { comments: (postSnap.data().comments || 0) + 1 });
+    }
+
+    return { id: docRef.id, ...newCommentData } as Comment;
+  },
+
+  updateComment: async (postId: string, commentId: string, text: string): Promise<Comment> => {
+    const docRef = doc(db, 'posts', postId, 'comments', commentId);
+    await updateDoc(docRef, { text, updatedAt: new Date().toISOString() });
+    const snap = await getDoc(docRef);
+    return { id: snap.id, ...snap.data() } as Comment;
+  },
+
+  deleteComment: async (postId: string, commentId: string): Promise<boolean> => {
+    await deleteDoc(doc(db, 'posts', postId, 'comments', commentId));
+
+    // Decrement comment count on post
+    const postRef = doc(db, 'posts', postId);
+    const postSnap = await getDoc(postRef);
+    if (postSnap.exists()) {
+      const currentComments = postSnap.data().comments || 0;
+      await updateDoc(postRef, { comments: Math.max(0, currentComments - 1) });
+    }
+    return true;
+  },
+
+  // --- Activity Feed API ---
+  getMyActivity: async (filter: 'all' | 'groups' | 'posts' | 'comments' = 'all'): Promise<ActivityItem[]> => {
+    const user = auth.currentUser;
+    if (!user) return [];
+
+    const activity: ActivityItem[] = [];
+
+    // Groups
+    if (filter === 'all' || filter === 'groups') {
+      const myGroups = await api.getMyGroups();
+      myGroups.forEach(g => {
+        activity.push({
+          id: g.id,
+          type: 'group',
+          title: g.name,
+          content: g.description,
+          createdAt: g.createdAt,
+          metadata: {
+            members: g.memberCount,
+            role: g.ownerId === user.uid ? 'Owner' : 'Member'
+          }
+        });
+      });
+    }
+
+    // Posts & Comments from Firestore
+    if (filter === 'all' || filter === 'posts' || filter === 'comments') {
+      const pSnap = await getDocs(collection(db, 'posts'));
+      const allPosts = pSnap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+
+      if (filter === 'all' || filter === 'posts') {
+        const userName = user.displayName || 'User';
+        const myPosts = allPosts.filter(p => p.authorId === user.uid || p.author?.name === userName || p.author?.name === 'You');
+        myPosts.forEach(p => {
+          activity.push({
+            id: p.id,
+            type: 'post',
+            content: p.content,
+            createdAt: p.createdAt || new Date().toISOString(),
+            metadata: {
+              likes: p.likes || 0,
+              comments: p.comments || 0,
+              tags: p.tags || []
+            }
+          });
+        });
+      }
+
+      if (filter === 'all' || filter === 'comments') {
+        const userName = user.displayName || 'User';
+        for (const p of allPosts) {
+          const cSnap = await getDocs(collection(db, 'posts', p.id, 'comments'));
+          const myComments = cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Comment)).filter(c => c.authorId === user.uid || c.author?.name === userName || c.author?.name === 'You');
+
+          myComments.forEach(c => {
+            activity.push({
+              id: c.id,
+              type: 'comment',
+              content: c.text,
+              createdAt: c.createdAt || new Date().toISOString(),
+              metadata: {
+                postId: p.id,
+                postTitle: p.content.substring(0, 30) + (p.content.length > 30 ? '...' : '')
+              }
+            });
+          });
+        }
+      }
+    }
+
+    return activity.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  getMyStats: async (): Promise<{ groups: number, posts: number, comments: number }> => {
+    const user = auth.currentUser;
+    if (!user) return { groups: 0, posts: 0, comments: 0 };
+    const userName = user.displayName || 'User';
+
+    const myGroups = await api.getMyGroups();
+    const groups = myGroups.length;
+
+    let postsCount = 0;
+    let commentsCount = 0;
+
+    try {
+      const pSnap = await getDocs(collection(db, 'posts'));
+      postsCount = pSnap.docs.filter(d => {
+        const p = d.data() as Post;
+        return p.authorId === user.uid || p.author?.name === userName || p.author?.name === 'You';
+      }).length;
+
+      for (const doc of pSnap.docs) {
+        const cSnap = await getDocs(collection(db, 'posts', doc.id, 'comments'));
+        commentsCount += cSnap.docs.filter(d => {
+          const c = d.data() as Comment;
+          return c.authorId === user.uid || c.author?.name === userName || c.author?.name === 'You';
+        }).length;
+      }
+    } catch (e) {
+      console.error("Failed to get stats", e);
+    }
+
+    return { groups, posts: postsCount, comments: commentsCount };
+  },
+
+  // --- Chat History API ---
+  getConversations: async (): Promise<Conversation[]> => {
+    await delay(400);
+    return [
+      {
+        id: 'c1',
+        recipientName: 'Sarah Chen',
+        recipientAvatar: 'SC',
+        lastMessage: 'Sounds good! See you then.',
+        timestamp: '2h ago',
+        unreadCount: 0
+      },
+      {
+        id: 'c2',
+        recipientName: 'David Kim',
+        recipientAvatar: 'DK',
+        lastMessage: 'Can you help me with this Python script?',
+        timestamp: '1d ago',
+        unreadCount: 2
+      }
+    ];
+  },
+
+  getMessages: async (conversationId: string): Promise<ChatMessage[]> => {
+    await delay(300);
+    // Mocking chat messages for any conversation ID
+    return CHAT_MESSAGES;
+  },
+
+  sendMessage: async (conversationId: string, text: string): Promise<ChatMessage> => {
+    await delay(200);
+    return {
+      id: `m_${Date.now()}`,
+      sender: 'me',
+      text,
+      timestamp: 'Just now',
+      read: false
+    };
+  },
+
+  // --- Roadmap API ---
+  getRoadmap: async (): Promise<RoadmapCategory[]> => {
+    await delay(300);
+    return ROADMAP_CATEGORIES;
+  },
+
+  getRoadmapProgress: async (): Promise<UserRoadmapProgress> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+
+    const docRef = doc(db, 'roadmap_progress', user.uid);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      const initial = getInitialProgress();
+      initial.userId = user.uid;
+      await setDoc(docRef, initial);
+      return initial;
+    }
+    return snap.data() as UserRoadmapProgress;
+  },
+
+  updateModuleStatus: async (moduleId: number, status: ModuleStatus): Promise<UserRoadmapProgress> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+
+    const docRef = doc(db, 'roadmap_progress', user.uid);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error("Roadmap progress not initialized");
+
+    const progress = snap.data() as UserRoadmapProgress;
+    progress.moduleStatuses[moduleId] = status;
+    progress.lastUpdated = new Date().toISOString();
+
+    if (status === 'completed') {
+      if (!progress.completedModuleIds.includes(moduleId)) {
+        progress.completedModuleIds.push(moduleId);
+      }
+
+      // Logic to unlock next module in the same category
+      const category = ROADMAP_CATEGORIES.find(c => c.modules.some(m => m.id === moduleId));
+      if (category) {
+        const currentIndex = category.modules.findIndex(m => m.id === moduleId);
+        if (currentIndex !== -1 && currentIndex < category.modules.length - 1) {
+          const nextModule = category.modules[currentIndex + 1];
+          // Only unlock if it was locked
+          if (progress.moduleStatuses[nextModule.id] === 'locked') {
+            progress.moduleStatuses[nextModule.id] = 'in-progress';
+          }
+        }
+      }
+
+      // Logic to unlock Category 4 (Portfolio) if Cat 1-3 are done
+      const isCat1Done = ROADMAP_CATEGORIES[0].modules.every(m => progress.completedModuleIds.includes(m.id));
+      const isCat2Done = ROADMAP_CATEGORIES[1].modules.every(m => progress.completedModuleIds.includes(m.id));
+      const isCat3Done = ROADMAP_CATEGORIES[2].modules.every(m => progress.completedModuleIds.includes(m.id));
+
+      if (isCat1Done && isCat2Done && isCat3Done) {
+        const cat4FirstModule = ROADMAP_CATEGORIES[3].modules[0];
+        if (progress.moduleStatuses[cat4FirstModule.id] === 'locked') {
+          progress.moduleStatuses[cat4FirstModule.id] = 'in-progress';
+        }
+      }
+    }
+
+    await updateDoc(docRef, { ...progress });
+    return progress;
+  },
+
+  logRoadmapEvent: async (type: 'resource_click' | 'test_click' | 'module_complete', moduleId: number | string): Promise<void> => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const eventData: any = {
+      userId: user.uid,
+      type,
+      moduleId,
+      timestamp: new Date().toISOString()
+    };
+    await addDoc(collection(db, 'roadmap_events'), eventData);
+    console.log('[Analytics]', eventData);
+  },
+
+  // --- Resource Engine ---
+  getCatalog: async (): Promise<CatalogData> => {
+    await delay(200);
+    return CATALOG;
+  },
+
+  getCourse: async (slug: string): Promise<CourseData | undefined> => {
+    await delay(300);
+    return CATALOG.courses.find(c => c.slug === slug);
+  },
+
+  getCourseProgress: async (slug: string): Promise<UserCourseProgressState> => {
+    const user = auth.currentUser;
+    if (!user) {
+      return {
+        modules: { 1: { status: 'in_progress' } },
+        projects: {}
+      };
+    }
+    const docRef = doc(db, 'course_progress', `${user.uid}_${slug}`);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) {
+      const initial: UserCourseProgressState = {
+        modules: { 1: { status: 'in_progress' } },
+        projects: {}
+      };
+      await setDoc(docRef, initial);
+      return initial;
+    }
+    return snap.data() as UserCourseProgressState;
+  },
+
+  markModuleComplete: async (slug: string, moduleOrder: number): Promise<UserCourseProgressState> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+
+    const docRef = doc(db, 'course_progress', `${user.uid}_${slug}`);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error("Progress not initialized");
+
+    const progress = snap.data() as UserCourseProgressState;
+    if (!progress.modules) progress.modules = {};
+    progress.modules[moduleOrder] = { status: 'completed' };
+
+    const course = CATALOG.courses.find(c => c.slug === slug);
+    if (course && course.modules) {
+      const nextModule = course.modules.find(m => m.order === moduleOrder + 1);
+      if (nextModule) {
+        if (!progress.modules[nextModule.order]) {
+          progress.modules[nextModule.order] = { status: 'in_progress' };
+        }
+      }
+    }
+
+    await updateDoc(docRef, { modules: progress.modules });
+    return progress;
+  },
+
+  markProjectComplete: async (slug: string, projectTitle: string): Promise<UserCourseProgressState> => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Not authenticated");
+
+    const docRef = doc(db, 'course_progress', `${user.uid}_${slug}`);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) throw new Error("Progress not initialized");
+
+    const progress = snap.data() as UserCourseProgressState;
+    if (!progress.projects) progress.projects = {};
+    progress.projects[projectTitle] = { isCompleted: true };
+
+    await updateDoc(docRef, { projects: progress.projects });
+    return progress;
+  },
+
+  searchResources: async (query: string): Promise<CourseData[]> => {
+    await delay(300);
+    const q = query.toLowerCase();
+    return CATALOG.courses.filter(c =>
+      c.title.toLowerCase().includes(q) ||
+      c.shortDesc.toLowerCase().includes(q)
+    );
+  }
 };
 

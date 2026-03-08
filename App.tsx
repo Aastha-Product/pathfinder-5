@@ -24,7 +24,7 @@ type ViewState = 'landing' | 'login' | 'signup' | 'password-reset' | 'projects' 
 // Protected Routes Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; fallback: () => void }> = ({ children, fallback }) => {
   const { user, loading } = useAuth();
-  
+
   useEffect(() => {
     if (!loading && !user) {
       fallback();
@@ -42,14 +42,14 @@ function AppContent() {
   const [currentView, setCurrentView] = useState<ViewState>('landing');
   const [resourceSearchQuery, setResourceSearchQuery] = useState('');
   const [targetCourseSlug, setTargetCourseSlug] = useState<string | undefined>(undefined);
-  
+
   const { user } = useAuth();
 
   // Redirect to resources if logged in and accessing auth pages
   useEffect(() => {
-      if (user && (currentView === 'login' || currentView === 'signup' || currentView === 'password-reset' || currentView === 'landing')) {
-          setCurrentView('resources');
-      }
+    if (user && (currentView === 'login' || currentView === 'signup' || currentView === 'password-reset' || currentView === 'landing')) {
+      setCurrentView('resources');
+    }
   }, [user]);
 
   // Handle navigation
@@ -59,11 +59,11 @@ function AppContent() {
     } else if (view !== 'resources') {
       setTargetCourseSlug(undefined);
     } else {
-       setTargetCourseSlug(undefined);
+      setTargetCourseSlug(undefined);
     }
     setCurrentView(view);
     window.scrollTo(0, 0);
-    
+
     // Sync with URL
     const url = new URL(window.location.href);
     url.searchParams.set('view', view);
@@ -82,9 +82,9 @@ function AppContent() {
       if (event.state) {
         setCurrentView(event.state.view);
         if (event.state.slug) {
-            setTargetCourseSlug(event.state.slug);
+          setTargetCourseSlug(event.state.slug);
         } else {
-            setTargetCourseSlug(undefined);
+          setTargetCourseSlug(undefined);
         }
       } else {
         // Fallback to URL params
@@ -92,22 +92,22 @@ function AppContent() {
         const view = params.get('view') as ViewState;
         const slug = params.get('slug');
         if (view) {
-            setCurrentView(view);
-            if (slug) setTargetCourseSlug(slug);
+          setCurrentView(view);
+          if (slug) setTargetCourseSlug(slug);
         } else {
-            setCurrentView('landing');
+          setCurrentView('landing');
         }
       }
     };
     window.addEventListener('popstate', handlePopState);
-    
+
     // Initial load from URL
     const params = new URLSearchParams(window.location.search);
     const view = params.get('view') as ViewState;
     const slug = params.get('slug');
     if (view) {
-        setCurrentView(view);
-        if (slug) setTargetCourseSlug(slug);
+      setCurrentView(view);
+      if (slug) setTargetCourseSlug(slug);
     }
 
     return () => window.removeEventListener('popstate', handlePopState);
@@ -130,23 +130,23 @@ function AppContent() {
 
     // MutationObserver to observe new elements
     const mutationObserver = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            mutation.addedNodes.forEach((node) => {
-                if (node instanceof HTMLElement) {
-                    if (node.classList.contains('fade-up')) {
-                        observer.observe(node);
-                    }
-                    node.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
-                }
-            });
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) {
+            if (node.classList.contains('fade-up')) {
+              observer.observe(node);
+            }
+            node.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+          }
         });
+      });
     });
-    
+
     mutationObserver.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-        observer.disconnect();
-        mutationObserver.disconnect();
+      observer.disconnect();
+      mutationObserver.disconnect();
     };
   }, []);
 
@@ -155,7 +155,7 @@ function AppContent() {
     if (currentView === 'login') {
       return <Login onNavigate={(view) => navigateTo(view as ViewState)} />;
     }
-    
+
     if (currentView === 'signup') {
       return <SignUp onNavigate={(view) => navigateTo(view as ViewState)} />;
     }
@@ -166,57 +166,64 @@ function AppContent() {
 
     // Protected Views
     if (['projects', 'mock-interviews', 'community', 'profile'].includes(currentView)) {
-        return (
-            <ProtectedRoute fallback={() => navigateTo('login')}>
-                <>
-                    <Header 
-                        onNavigate={(view) => navigateTo(view as ViewState)}
-                        onOpenProfile={() => navigateTo('profile')}
-                    />
-                    {currentView === 'projects' && (
-                        <Projects 
-                            onNavigate={(view) => navigateTo(view as ViewState)} 
-                        />
-                    )}
-                    {currentView === 'mock-interviews' && <MockInterviews />}
-                    {currentView === 'community' && <CommunityFeed />}
-                    {currentView === 'profile' && <ProfileLayout />}
-                </>
-            </ProtectedRoute>
-        );
-    }
-
-    if (currentView === 'resources') {
-        return (
+      return (
+        <ProtectedRoute fallback={() => navigateTo('login')}>
           <>
-            <Header 
+            <Header
               onNavigate={(view) => navigateTo(view as ViewState)}
               onOpenProfile={() => navigateTo('profile')}
             />
-            <ResourcesRoadmap 
-              onNavigate={(view) => navigateTo(view as ViewState)} 
-              initialSearchTerm={resourceSearchQuery}
-              initialCourseSlug={targetCourseSlug}
-            />
+            {currentView === 'projects' && (
+              <Projects
+                onNavigate={(view) => navigateTo(view as ViewState)}
+              />
+            )}
+            {currentView === 'mock-interviews' && <MockInterviews />}
+            {currentView === 'community' && <CommunityFeed />}
+            {currentView === 'profile' && <ProfileLayout />}
           </>
-        );
-      }
+        </ProtectedRoute>
+      );
+    }
+
+    if (currentView === 'resources') {
+      return (
+        <>
+          <Header
+            onNavigate={(view) => navigateTo(view as ViewState)}
+            onOpenProfile={() => navigateTo('profile')}
+          />
+          <ResourcesRoadmap
+            onNavigate={(view) => navigateTo(view as ViewState)}
+            initialSearchTerm={resourceSearchQuery}
+            initialCourseSlug={targetCourseSlug}
+          />
+        </>
+      );
+    }
 
     return (
       <>
-        <Header 
+        <Header
           onNavigate={(view) => navigateTo(view as ViewState)}
           onOpenProfile={() => navigateTo('profile')}
         />
         <main>
-          <Hero 
+          <Hero
             onNavigate={(view) => navigateTo(view as ViewState)}
             onSearch={(query) => {
               setResourceSearchQuery(query);
               navigateTo('resources');
             }}
           />
-          <ResourcePreview limit={3} onNavigate={(view, slug) => navigateTo(view as ViewState, slug)} />
+          <ResourcePreview
+            limit={4}
+            onNavigate={(view, slug) => navigateTo(view as ViewState, slug)}
+            onSearch={(query) => {
+              setResourceSearchQuery(query);
+              navigateTo('resources');
+            }}
+          />
           <HowItWorks onNavigate={(view) => navigateTo(view as ViewState)} />
           <PracticeWithOthers onNavigate={(view) => navigateTo(view as ViewState)} />
           <Outcomes />
@@ -230,18 +237,18 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-white text-text-900 font-sans selection:bg-primary-600/20 selection:text-primary-700">
       {renderContent()}
-      <ProfileSuccessModal 
-        isOpen={isProfileSuccessOpen} 
-        onClose={() => setIsProfileSuccessOpen(false)} 
+      <ProfileSuccessModal
+        isOpen={isProfileSuccessOpen}
+        onClose={() => setIsProfileSuccessOpen(false)}
       />
     </div>
   );
 }
 
 export default function App() {
-    return (
-        <AuthProvider>
-            <AppContent />
-        </AuthProvider>
-    );
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
 }
