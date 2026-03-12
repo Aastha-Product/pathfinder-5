@@ -59,6 +59,10 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
     const [viewMode, setViewMode] = useState('board');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
+    const [timelineMonth, setTimelineMonth] = useState(() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
 
     // Modals
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -83,8 +87,14 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
     React.useEffect(() => {
         if (currentProject) {
             loadTasks(currentProject.id);
+            if (currentProject.startDate) {
+                const d = new Date(currentProject.startDate);
+                if (!isNaN(d.getTime())) {
+                    setTimelineMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                }
+            }
         }
-    }, [currentProject]);
+    }, [currentProject?.id]);
 
     const loadProjects = async () => {
         setLoading(true);
@@ -100,6 +110,22 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
             console.error("Failed to load projects", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateProjectDates = async (start: string, end: string) => {
+        if (!currentProject) return;
+        try {
+            const updates = { startDate: start, endDate: end };
+            await api.updateProject(currentProject.id, updates);
+            setCurrentProject({ ...currentProject, ...updates });
+            setProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, ...updates } : p));
+            setToastMessage("Project dates updated");
+            setShowToast(true);
+        } catch (error) {
+            console.error("Failed to update project dates", error);
+            setToastMessage("Failed to update project dates");
+            setShowToast(true);
         }
     };
 
@@ -295,20 +321,39 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
     };
     const tasksWithDates = getAllTasksWithDates();
 
-    // Helper to determine position on timeline (mock logic for MVP preview)
+    // Helper to determine position on timeline
     const getTimelinePosition = (start: string, end: string) => {
-        // Simplified: assume a fixed 30 day view for demo
-        const startDate = new Date(start);
-        const endDate = new Date(end);
-        const dayWidth = 3; // % per day
+        const [viewYear, viewMonthStr] = timelineMonth.split('-');
+        if (!viewYear || !viewMonthStr) return { left: '0%', width: '0%', display: 'none' };
+        
+        const viewYearNum = parseInt(viewYear);
+        const viewMonthNum = parseInt(viewMonthStr) - 1;
+        
+        const viewStartDate = new Date(viewYearNum, viewMonthNum, 1).getTime();
+        const viewEndDate = new Date(viewYearNum, viewMonthNum + 1, 0, 23, 59, 59, 999).getTime();
+        const daysInMonth = new Date(viewYearNum, viewMonthNum + 1, 0).getDate();
+        
+        const taskStart = new Date(start).getTime();
+        const taskEnd = new Date(end).getTime() + (23 * 60 * 60 * 1000); // assume end of day
+        
+        if (taskEnd < viewStartDate || taskStart > viewEndDate) {
+            return { left: '0%', width: '0%', display: 'none' };
+        }
 
-        const dayDiff = (d1: Date, d2: Date) => Math.ceil((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
+        const effectiveStart = Math.max(taskStart, viewStartDate);
+        const effectiveEnd = Math.min(taskEnd, viewEndDate);
 
-        // Offset from "start of month" (mock)
-        const offset = (startDate.getDate()) * dayWidth;
-        const width = Math.max(dayDiff(endDate, startDate) * dayWidth, dayWidth);
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const startOffsetDays = (effectiveStart - viewStartDate) / msPerDay;
+        const durationDays = (effectiveEnd - effectiveStart) / msPerDay;
 
-        return { left: `${Math.min(offset, 90)}%`, width: `${Math.min(width, 100)}%` };
+        const dayWidth = 100 / daysInMonth;
+
+        return { 
+            left: `${startOffsetDays * dayWidth}%`, 
+            width: `${Math.max(durationDays * dayWidth, dayWidth)}%`,
+            display: 'block'
+        };
     };
 
     if (loading) {
@@ -412,7 +457,21 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
                         <div className="h-4 w-px bg-slate-300"></div>
                         <div className="flex items-center text-slate-500 text-sm font-medium">
                             <CalendarIcon className="w-4 h-4 mr-2 text-slate-400" />
-                            <span>Feb 28, 2026</span>
+                            <input 
+                                type="date" 
+                                className="bg-transparent border-none focus:ring-0 p-0 text-slate-500 font-medium cursor-pointer w-auto min-w-[110px]" 
+                                value={currentProject?.startDate || ''}
+                                onChange={(e) => handleUpdateProjectDates(e.target.value, currentProject?.endDate || '')}
+                                title="Project Start Date"
+                            />
+                            <span className="mx-1 text-slate-400">-</span>
+                            <input 
+                                type="date" 
+                                className="bg-transparent border-none focus:ring-0 p-0 text-slate-500 font-medium cursor-pointer w-auto min-w-[110px]" 
+                                value={currentProject?.endDate || ''}
+                                onChange={(e) => handleUpdateProjectDates(currentProject?.startDate || '', e.target.value)}
+                                title="Project End Date"
+                            />
                         </div>
                     </div>
                 </div>
@@ -438,7 +497,8 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
                     </div>
 
                     {/* Right: Search & Actions */}
-                    <div className="flex flex-wrap items-center gap-3 pb-2">
+                    {viewMode !== 'timeline' && (
+                        <div className="flex flex-wrap items-center gap-3 pb-2">
                         <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
@@ -475,6 +535,7 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
                             <Users className="w-3.5 h-3.5 mr-1.5" /> Invite Members
                         </Button>
                     </div>
+                    )}
                 </div>
             </div>
 
@@ -612,12 +673,20 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
                         <div className="flex-1 overflow-auto black-scrollbar-dark p-6 lg:p-8">
                             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 overflow-x-auto min-h-[500px]">
                                 <div className="min-w-[800px]">
-                                    {/* Timeline Header (Mock Months) */}
-                                    <div className="flex border-b border-slate-100 pb-4 mb-4">
-                                        <div className="w-1/4 font-bold text-slate-400 text-xs uppercase tracking-wider">Task</div>
+                                    {/* Timeline Header */}
+                                    <div className="flex border-b border-slate-100 pb-4 mb-4 items-center">
+                                        <div className="w-1/4 font-bold text-slate-400 text-xs uppercase tracking-wider flex items-center justify-between pr-4">
+                                            <span>Task</span>
+                                            <input 
+                                                type="month" 
+                                                className="border border-slate-200 rounded px-2 py-1 text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 h-8" 
+                                                value={timelineMonth} 
+                                                onChange={e => setTimelineMonth(e.target.value)} 
+                                            />
+                                        </div>
                                         <div className="w-3/4 flex justify-between px-4">
-                                            {['Feb', 'Mar', 'Apr', 'May', 'Jun'].map(m => (
-                                                <div key={m} className="text-xs font-bold text-slate-400 uppercase">{m}</div>
+                                            {['Week 1', 'Week 2', 'Week 3', 'Week 4'].map(w => (
+                                                <div key={w} className="text-xs font-bold text-slate-400 uppercase">{w}</div>
                                             ))}
                                         </div>
                                     </div>
@@ -637,7 +706,7 @@ export const Projects: React.FC<ProjectsProps> = ({ onNavigate }) => {
                                                                 className={`absolute top-1 bottom-1 rounded-md opacity-90 transition-all group-hover:opacity-100 ${task.status === 'Done' ? 'bg-green-500' :
                                                                     task.status === 'In Progress' ? 'bg-blue-500' : 'bg-slate-400'
                                                                     }`}
-                                                                style={{ left: style.left, width: style.width }}
+                                                                style={{ left: style.left, width: style.width, display: style.display || 'block' }}
                                                             ></div>
                                                         </div>
                                                     </div>

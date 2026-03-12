@@ -156,6 +156,7 @@ export interface InterviewPartner {
   next_available?: string;
   company?: string;
   experience_level?: string;
+  profile_completion_percentage?: number;
 }
 
 export interface MockSession {

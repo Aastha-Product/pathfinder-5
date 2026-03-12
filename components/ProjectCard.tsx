@@ -120,10 +120,12 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ task, onEdit, onDelete
 
         {/* Stats */}
         <div className="flex items-center gap-3 text-slate-400 text-xs font-medium">
-            {task.dueDate && (
-                <div className={`flex items-center ${new Date(task.dueDate) < new Date() ? 'text-red-500' : ''}`}>
+            {(task.startDate || task.dueDate) && (
+                <div className={`flex items-center ${task.dueDate && new Date(task.dueDate) < new Date() ? 'text-red-500' : ''}`}>
                     <Calendar className="w-3 h-3 mr-1" />
-                    {new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    {task.startDate ? new Date(task.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                    {task.startDate && task.dueDate ? ' - ' : ''}
+                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
                 </div>
             )}
             

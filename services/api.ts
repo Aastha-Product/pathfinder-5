@@ -325,7 +325,8 @@ const PEERS: InterviewPartner[] = [
     rating: 4.8,
     availability_published: true,
     next_available: 'Weekends',
-    experience_level: 'Intermediate'
+    experience_level: 'Intermediate',
+    profile_completion_percentage: 100
   },
   {
     id: 'p2',
@@ -339,7 +340,8 @@ const PEERS: InterviewPartner[] = [
     rating: 4.9,
     availability_published: true,
     next_available: 'Today, 4:00 PM',
-    experience_level: 'Senior'
+    experience_level: 'Senior',
+    profile_completion_percentage: 100
   },
   {
     id: 'p3',
@@ -353,7 +355,8 @@ const PEERS: InterviewPartner[] = [
     rating: 4.5,
     availability_published: false,
     next_available: 'Evenings',
-    experience_level: 'Beginner'
+    experience_level: 'Beginner',
+    profile_completion_percentage: 60
   },
   {
     id: 'p4',
@@ -367,7 +370,8 @@ const PEERS: InterviewPartner[] = [
     rating: 4.7,
     availability_published: true,
     next_available: 'Tomorrow',
-    experience_level: 'Intermediate'
+    experience_level: 'Intermediate',
+    profile_completion_percentage: 100
   }
 ];
 
@@ -2192,10 +2196,15 @@ export const api = {
   // --- Mock Interviews ---
   getPeers: async (searchQuery?: string): Promise<InterviewPartner[]> => {
     await delay(300); // Faster for UI
-    if (!searchQuery) return PEERS;
+    
+    // Filter peers with 100% profile completeness
+    const completedPeers = PEERS.filter(p => p.profile_completion_percentage === 100);
+    
+    if (!searchQuery) return completedPeers;
     const lowerQ = searchQuery.toLowerCase();
+    
     // Search by name or tag (skill)
-    return PEERS.filter(p =>
+    return completedPeers.filter(p =>
       p.name.toLowerCase().includes(lowerQ) ||
       p.skills.some(s => s.toLowerCase().includes(lowerQ))
     );
@@ -2634,7 +2643,7 @@ export const api = {
 
       if (filter === 'all' || filter === 'posts') {
         const userName = user.displayName || 'User';
-        const myPosts = allPosts.filter(p => p.authorId === user.uid || p.author?.name === userName || p.author?.name === 'You');
+        const myPosts = allPosts.filter(p => !p.groupId && (p.authorId === user.uid || p.author?.name === userName || p.author?.name === 'You'));
         myPosts.forEach(p => {
           activity.push({
             id: p.id,
@@ -2653,6 +2662,7 @@ export const api = {
       if (filter === 'all' || filter === 'comments') {
         const userName = user.displayName || 'User';
         for (const p of allPosts) {
+          if (p.groupId) continue;
           const cSnap = await getDocs(collection(db, 'posts', p.id, 'comments'));
           const myComments = cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Comment)).filter(c => c.authorId === user.uid || c.author?.name === userName || c.author?.name === 'You');
 
@@ -2690,10 +2700,12 @@ export const api = {
       const pSnap = await getDocs(collection(db, 'posts'));
       postsCount = pSnap.docs.filter(d => {
         const p = d.data() as Post;
-        return p.authorId === user.uid || p.author?.name === userName || p.author?.name === 'You';
+        return !p.groupId && (p.authorId === user.uid || p.author?.name === userName || p.author?.name === 'You');
       }).length;
 
       for (const doc of pSnap.docs) {
+        const p = doc.data() as Post;
+        if (p.groupId) continue;
         const cSnap = await getDocs(collection(db, 'posts', doc.id, 'comments'));
         commentsCount += cSnap.docs.filter(d => {
           const c = d.data() as Comment;
